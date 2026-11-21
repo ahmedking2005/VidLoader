@@ -62,6 +62,11 @@ class LibraryRepository(context: Context) {
         save(list)
     }
 
+    /** Replaces the whole stored list (used to prune entries whose files vanished). */
+    fun replaceAll(list: List<LibraryItem>) = synchronized(lock) {
+        save(list)
+    }
+
     private fun save(list: List<LibraryItem>) {
         val arr = JSONArray()
         for (item in list) {
