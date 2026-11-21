@@ -53,7 +53,7 @@ class LibraryFragment : Fragment() {
         val all = repo.load()
         val alive = all.filter { exists(it) }
         if (alive.size != all.size) {
-            repo.save(alive)
+            repo.replaceAll(alive)
         }
         adapter.items = alive
         binding.emptyText.visibility = if (alive.isEmpty()) View.VISIBLE else View.GONE
