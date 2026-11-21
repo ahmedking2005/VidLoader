@@ -22,6 +22,13 @@ class VidLoaderApp : Application() {
         instance = this
         // Apply the persisted theme choice before any activity is created.
         com.ahmed.vidloader.data.DownloadSettings.applyTheme(this)
+        // v1.12: Unity Ads (standalone, low-annoyance placements only).
+        // Wrapped so an ads failure can never break app startup.
+        try {
+            com.ahmed.vidloader.ads.AdsManager.init(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "ads init failed", e)
+        }
         // v1.10 background work: ensure the periodic watch check exists and
         // re-register any persisted scheduled downloads (unique names + KEEP
         // policy inside, so this can never create duplicates).

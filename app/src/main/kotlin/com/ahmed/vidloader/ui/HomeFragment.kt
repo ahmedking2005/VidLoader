@@ -17,11 +17,17 @@ import com.ahmed.vidloader.download.DownloadKind
 import com.ahmed.vidloader.download.DownloadService
 import com.ahmed.vidloader.download.DownloadSpec
 import com.ahmed.vidloader.util.FormatUtils
+import com.unity3d.services.banners.BannerErrorInfo
+import com.unity3d.services.banners.BannerView
+import com.unity3d.services.banners.UnityBannerSize
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
+
+    /** v1.12 Unity Ads banner — home screen only; see [setupBanner]. */
+    private var bannerView: BannerView? = null
 
     private var pendingSharedUrl: String? = null
     private var pendingAutoFetch: Boolean = false
@@ -105,6 +111,48 @@ class HomeFragment : Fragment() {
             pendingSharedUrl = null
             pendingAutoFetch = false
         }
+
+        setupBanner()
+    }
+
+    /**
+     * v1.12 — small Unity Ads banner pinned at the bottom of the HOME tab
+     * only, under Ahmed's free + low-annoyance rule: the container stays
+     * GONE (zero height, no empty gap) until an ad actually loads, and when
+     * visible it reserves its own space in the layout — it never overlays
+     * content. Any load failure simply leaves the container hidden.
+     */
+    private fun setupBanner() {
+        val activity = activity ?: return
+        val container = binding.bannerContainer
+        val banner = BannerView(
+            activity,
+            com.ahmed.vidloader.ads.AdsManager.BANNER_PLACEMENT,
+            UnityBannerSize(320, 50)
+        )
+        banner.listener = object : BannerView.Listener {
+            override fun onBannerLoaded(bannerAdView: BannerView?) {
+                if (_binding == null || bannerAdView == null) return
+                if (bannerAdView.parent == null) container.addView(bannerAdView)
+                container.visibility = View.VISIBLE
+            }
+
+            override fun onBannerFailedToLoad(bannerAdView: BannerView?, errorInfo: BannerErrorInfo?) {
+                if (_binding == null) return
+                container.removeAllViews()
+                container.visibility = View.GONE
+            }
+
+            override fun onBannerShown(bannerAdView: BannerView?) = Unit
+            override fun onBannerClicked(bannerAdView: BannerView?) = Unit
+            override fun onBannerLeftApplication(bannerAdView: BannerView?) = Unit
+        }
+        bannerView = banner
+        try {
+            banner.load()
+        } catch (e: Exception) {
+            container.visibility = View.GONE
+        }
     }
 
     /**
@@ -147,6 +195,12 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        try {
+            bannerView?.destroy()
+        } catch (e: Exception) {
+            // Banner teardown must never crash view destruction.
+        }
+        bannerView = null
         super.onDestroyView()
         _binding = null
     }

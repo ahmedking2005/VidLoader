@@ -20,8 +20,8 @@ android {
         applicationId = "com.ahmed.vidloader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.11.0"
+        versionCode = 13
+        versionName = "1.12.0"
     }
 
     splits {
@@ -83,6 +83,8 @@ dependencies {
     implementation("io.coil-kt:coil:2.7.0")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-ui:1.5.1")
+    // v1.12: Unity Ads standalone SDK (direct, no mediation, no other network).
+    implementation("com.unity3d.ads:unity-ads:4.22.0")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
 }

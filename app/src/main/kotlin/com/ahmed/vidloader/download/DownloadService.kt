@@ -867,6 +867,11 @@ class DownloadService : Service() {
                     // Partial success still owes the user its failed items.
                     if (rt.failed > 0) recordFailedJob(job.withCurrentLabel(), rt)
                     notifyJobFinished(job.withCurrentLabel(), rt.succeeded, rt.failed, job.id)
+                    // v1.12 low-annoyance rule: the ONLY interstitial moment —
+                    // after a job completed successfully. AdsManager itself
+                    // enforces foreground-only + 10-minute cap + per-job
+                    // dedupe, and skips silently otherwise.
+                    com.ahmed.vidloader.ads.AdsManager.onDownloadJobCompleted(this, job.id)
                 }
                 else -> {
                     if (isPrimary(rt)) {
