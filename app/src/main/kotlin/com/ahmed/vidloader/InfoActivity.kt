@@ -110,16 +110,16 @@ class InfoActivity : AppCompatActivity() {
         binding.loading.visibility = View.GONE
         binding.infoScroll.visibility = View.VISIBLE
 
-        videoTitle = info.title
+        videoTitle = info.title.orEmpty()
         binding.videoTitle.text = info.title
-        if (info.thumbnail.isNotBlank()) {
+        if (!info.thumbnail.isNullOrBlank()) {
             binding.thumbnail.load(info.thumbnail) {
                 crossfade(true)
             }
         }
         val meta = mutableListOf<String>()
         if (info.duration > 0) meta += FormatUtils.duration(info.duration.toDouble())
-        if (info.extractor.isNotBlank()) meta += getString(R.string.from_site, info.extractor)
+        if (!info.extractor.isNullOrBlank()) meta += getString(R.string.from_site, info.extractor)
         binding.videoMeta.text = meta.joinToString(" • ")
 
         adapter.rows = buildRows(info)
@@ -164,7 +164,8 @@ class InfoActivity : AppCompatActivity() {
                 val needsAudio = f.acodec.isNullOrEmpty() || f.acodec == "none"
                 val total = vSize + if (needsAudio) bestAudioSize else 0L
                 val parts = mutableListOf<String>()
-                if (f.ext.isNotBlank()) parts += f.ext.uppercase()
+                val ext = f.ext.orEmpty()
+                if (ext.isNotBlank()) parts += ext.uppercase()
                 if (total > 0) parts += FormatUtils.sizeLabel(total, approx = isApprox(f) || (needsAudio && bestAudioApprox))
                 return parts.joinToString(" • ")
             }
