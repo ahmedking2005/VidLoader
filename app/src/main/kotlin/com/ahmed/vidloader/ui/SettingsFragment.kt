@@ -12,6 +12,8 @@ import androidx.lifecycle.lifecycleScope
 import com.ahmed.vidloader.BuildConfig
 import com.ahmed.vidloader.R
 import com.ahmed.vidloader.VidLoaderApp
+import com.ahmed.vidloader.data.UpdateChecker
+import com.ahmed.vidloader.data.UpdatePrompt
 import com.ahmed.vidloader.databinding.FragmentSettingsBinding
 import com.ahmed.vidloader.util.friendlyError
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -35,7 +37,26 @@ class SettingsFragment : Fragment() {
 
         binding.aboutText.text = getString(R.string.settings_about_desc, BuildConfig.VERSION_NAME)
         binding.updateButton.setOnClickListener { updateEngine() }
+        binding.appUpdateButton.setOnClickListener { checkAppUpdate() }
         refreshEngineVersion()
+    }
+
+    /** Manual app-update check: ignores the 24h throttle and the «لاحقًا» dismissal. */
+    private fun checkAppUpdate() {
+        binding.appUpdateButton.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val latest = UpdateChecker.fetchLatest()
+            if (_binding == null) return@launch
+            binding.appUpdateButton.isEnabled = true
+            when {
+                latest == null ->
+                    Toast.makeText(requireContext(), R.string.update_check_failed, Toast.LENGTH_LONG).show()
+                latest.versionCode > UpdateChecker.installedVersionCode(requireContext()) ->
+                    UpdatePrompt.show(requireContext(), latest)
+                else ->
+                    Toast.makeText(requireContext(), R.string.app_up_to_date, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun refreshEngineVersion() {

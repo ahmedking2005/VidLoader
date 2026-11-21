@@ -136,4 +136,13 @@
 
     <!-- روابط متعددة -->
     <string name="links_added">أُضيفت %1$d روابط إلى قائمة التنزيل</string>
+
+    <!-- تحديث التطبيق -->
+    <string name="check_app_updates">التحقق من تحديثات التطبيق</string>
+    <string name="update_available_title">يتوفر إصدار جديد</string>
+    <string name="update_available_body">الإصدار %1$s متاح الآن (أنت على %2$s)</string>
+    <string name="download_now">تنزيل الآن</string>
+    <string name="later">لاحقًا</string>
+    <string name="app_up_to_date">أنت على أحدث إصدار</string>
+    <string name="update_check_failed">تعذّر التحقق من التحديثات</string>
 </resources>

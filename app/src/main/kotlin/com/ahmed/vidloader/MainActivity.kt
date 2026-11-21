@@ -9,7 +9,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.ahmed.vidloader.data.PausedJobsRepository
+import com.ahmed.vidloader.data.UpdateChecker
+import com.ahmed.vidloader.data.UpdatePrompt
 import com.ahmed.vidloader.databinding.ActivityMainBinding
 import com.ahmed.vidloader.download.DownloadCenter
 import com.ahmed.vidloader.ui.BrowserFragment
@@ -17,6 +20,7 @@ import com.ahmed.vidloader.ui.HomeFragment
 import com.ahmed.vidloader.ui.LibraryFragment
 import com.ahmed.vidloader.ui.SettingsFragment
 import com.ahmed.vidloader.util.FormatUtils
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -70,6 +74,27 @@ class MainActivity : AppCompatActivity() {
         }
 
         handleIntent(intent)
+        maybeAutoCheckForUpdate()
+    }
+
+    /**
+     * Best-effort self-update check, at most once per 24h. The throttle is
+     * stamped synchronously before the fetch, so this cannot fire twice per
+     * cold start even if the activity is recreated. A newer version prompts
+     * once; «لاحقًا» silences that exact version for good.
+     */
+    private fun maybeAutoCheckForUpdate() {
+        if (!UpdateChecker.shouldAutoCheck(this)) return
+        UpdateChecker.markAutoCheckStarted(this)
+        lifecycleScope.launch {
+            val latest = UpdateChecker.fetchLatest() ?: return@launch
+            if (isFinishing || isDestroyed) return@launch
+            if (latest.versionCode > UpdateChecker.installedVersionCode(this@MainActivity) &&
+                !UpdateChecker.isDismissed(this@MainActivity, latest.versionCode)
+            ) {
+                UpdatePrompt.show(this@MainActivity, latest)
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
