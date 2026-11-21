@@ -77,4 +77,16 @@
     <string name="error_engine_not_ready">محرك التنزيل غير جاهز بعد، انتظر ثواني وحاول مجددًا</string>
     <string name="error_generic">حدث خطأ غير متوقع</string>
     <string name="retry">حاول مجددًا</string>
+
+    <!-- إصلاحات الربط -->
+    <string name="best_quality">أفضل جودة</string>
+    <string name="delete">حذف</string>
+    <string name="delete_title">حذف الملف</string>
+    <string name="delete_message">سيتم حذف "%1$s" نهائيًا.</string>
+    <string name="deleted">تم حذف الملف</string>
+    <string name="download_started">بدأ التنزيل</string>
+    <string name="engine_version_format">إصدار المحرك: %1$s</string>
+    <string name="engine_version_unknown">غير معروف</string>
+    <string name="error_no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
+    <string name="error_storage_permission">يحتاج التطبيق إلى إذن التخزين لحفظ التنزيلات على هذا الجهاز</string>
 </resources>
