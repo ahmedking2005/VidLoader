@@ -12,3 +12,12 @@ tools/
 workflow-for-parent/
 *.apk
 gradle-home/
+
+# Android / native build leftovers
+.cxx/
+.externalNativeBuild/
+captures/
+*.jks
+*.keystore
+.DS_Store
+/app/release/
