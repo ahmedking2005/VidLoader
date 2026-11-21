@@ -94,6 +94,7 @@ class SettingsFragment : Fragment() {
                 val message = when (status) {
                     YoutubeDL.UpdateStatus.DONE -> R.string.update_success
                     YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE -> R.string.update_already_latest
+                    null -> R.string.error_generic
                 }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
                 refreshEngineVersion()
