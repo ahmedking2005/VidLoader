@@ -251,4 +251,26 @@
     <string name="convert_failed">فشل التحويل</string>
     <string name="convert_failed_for">فشل تحويل: %1$s</string>
     <string name="convert_no_ffmpeg">لم يتم العثور على محرك التحويل (ffmpeg) داخل التطبيق</string>
+
+    <!-- v1.10: المراقبة -->
+    <string name="watch_title">المراقبة</string>
+    <string name="watch_url_hint">رابط قناة أو قائمة تشغيل</string>
+    <string name="watch_label_hint">اسم اختياري — مثال: قناة شرح البرمجة</string>
+    <string name="watch_add">إضافة للمراقبة</string>
+    <string name="watch_seeding">جارٍ تجهيز المراقبة…</string>
+    <string name="watch_empty">لا توجد قنوات أو قوائم قيد المراقبة بعد.\nأضف رابطًا بالأعلى وسيتم تنزيل أي فيديو جديد يُنشر بعده تلقائيًا.</string>
+    <string name="watch_invalid_url">أدخل رابطًا صحيحًا يبدأ بـ http</string>
+    <string name="watch_seeded">بدأت المراقبة — سيتم تنزيل الفيديوهات الجديدة فقط من الآن</string>
+    <string name="watch_added_unseeded">تمت الإضافة — ستتم تهيئة المراقبة عند أول فحص</string>
+    <string name="watch_last_checked">آخر فحص: %1$s</string>
+    <string name="watch_never_checked">لم يتم الفحص بعد</string>
+    <string name="watch_delete_message">سيتم إيقاف مراقبة «%1$s» وحذفها.</string>
+
+    <!-- v1.10: التنزيل المجدول -->
+    <string name="schedule_download">جدولة التنزيل</string>
+    <string name="scheduled_title">التنزيلات المجدولة</string>
+    <string name="scheduled_empty">لا توجد تنزيلات مجدولة</string>
+    <string name="schedule_past">اختر تاريخًا ووقتًا في المستقبل</string>
+    <string name="scheduled_for">تمت الجدولة لـ %1$s</string>
+    <string name="scheduled_at">مجدول: %1$s</string>
 </resources>

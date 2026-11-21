@@ -103,6 +103,9 @@ class LibraryFragment : Fragment() {
         binding.historyButton.setOnClickListener {
             startActivity(Intent(requireContext(), com.ahmed.vidloader.HistoryActivity::class.java))
         }
+        binding.watchButton.setOnClickListener {
+            startActivity(Intent(requireContext(), com.ahmed.vidloader.WatchActivity::class.java))
+        }
 
         binding.sortButton.setOnClickListener { showSortMenu() }
         binding.deleteSelectedButton.setOnClickListener { confirmDeleteSelected() }

@@ -106,6 +106,16 @@
                     android:maxLines="1" />
             </LinearLayout>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/schedule_button"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginTop="4dp"
+                android:text="@string/schedule_download" />
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/formats_list"
                 android:layout_width="match_parent"

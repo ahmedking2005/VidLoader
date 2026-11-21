@@ -85,6 +85,11 @@ class InfoActivity : AppCompatActivity() {
         binding.formatsList.adapter = adapter
 
         binding.errorRetry.setOnClickListener { loadInfo() }
+        binding.scheduleButton.setOnClickListener {
+            // «جدولة التنزيل» (v1.10, single-video mode): pick a future
+            // date+time; the URL downloads then at the quick preset.
+            com.ahmed.vidloader.util.SchedulePicker.schedule(this, videoUrl, videoTitle)
+        }
         binding.sectionToggle.setOnCheckedChangeListener { _, checked ->
             binding.sectionBox.visibility = if (checked) View.VISIBLE else View.GONE
         }

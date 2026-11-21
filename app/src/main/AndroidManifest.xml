@@ -105,6 +105,14 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <!-- Channel/playlist monitoring + scheduled downloads (v1.10).
+             WorkManager uses its default androidx.startup initializer from
+             the work-runtime library — no custom provider is declared. -->
+        <activity
+            android:name=".WatchActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <service
             android:name=".download.DownloadService"
             android:exported="false"

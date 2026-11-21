@@ -84,6 +84,19 @@ class HomeFragment : Fragment() {
             }
         }
 
+        binding.scheduleButton.setOnClickListener {
+            val urls = FormatUtils.extractUrls(binding.urlInput.text?.toString())
+            if (urls.isEmpty()) {
+                binding.urlLayout.error = getString(R.string.error_invalid_url)
+            } else {
+                // «جدولة التنزيل» (v1.10): pick a future date+time once; every
+                // entered URL is scheduled for it at the quick preset.
+                binding.urlLayout.error = null
+                com.ahmed.vidloader.util.SchedulePicker.scheduleAll(requireContext(), urls)
+                binding.urlInput.text?.clear()
+            }
+        }
+
         pendingSharedUrl?.let { url ->
             binding.urlInput.setText(url)
             if (pendingAutoFetch) {

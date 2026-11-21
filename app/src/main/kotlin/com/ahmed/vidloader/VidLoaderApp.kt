@@ -22,6 +22,14 @@ class VidLoaderApp : Application() {
         instance = this
         // Apply the persisted theme choice before any activity is created.
         com.ahmed.vidloader.data.DownloadSettings.applyTheme(this)
+        // v1.10 background work: ensure the periodic watch check exists and
+        // re-register any persisted scheduled downloads (unique names + KEEP
+        // policy inside, so this can never create duplicates).
+        try {
+            com.ahmed.vidloader.work.WorkScheduler.registerAll(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "background work registration failed", e)
+        }
         Thread { initEngineBlocking() }.start()
     }
 
