@@ -1,14 +1,21 @@
 package com.ahmed.vidloader.ui
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.ahmed.vidloader.databinding.ItemDetectedBinding
 
-/** One sniffed direct-media URL found by the in-app browser. */
+/** One entry in the browser's detected-media list. */
 data class DetectedMedia(
     val url: String,
-    val fileName: String
+    val fileName: String,
+    /**
+     * True for the pinned "video of this page" entry (a recognised video page
+     * such as a YouTube watch page). It has no direct file to grab, so only
+     * the open-in-downloader (extractor) action applies to it.
+     */
+    val isPageVideo: Boolean = false
 )
 
 class DetectedAdapter(
@@ -32,6 +39,8 @@ class DetectedAdapter(
         val binding = holder.binding
         binding.detectedName.text = item.fileName
         binding.detectedUrl.text = item.url
+        // A page-video entry is a web page, not a file: direct download is meaningless.
+        binding.detectedDirect.visibility = if (item.isPageVideo) View.GONE else View.VISIBLE
         binding.detectedDirect.setOnClickListener { onDirectDownload(item) }
         binding.detectedOpen.setOnClickListener { onOpenInDownloader(item) }
     }

@@ -26,6 +26,8 @@ import com.ahmed.vidloader.databinding.FragmentBrowserBinding
 import com.ahmed.vidloader.download.DownloadKind
 import com.ahmed.vidloader.download.DownloadService
 import com.ahmed.vidloader.download.DownloadSpec
+import com.ahmed.vidloader.util.PageVideo
+import com.ahmed.vidloader.util.PageVideoMatch
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -36,6 +38,9 @@ class BrowserFragment : Fragment() {
 
     /** Sniffed direct-media URLs on the current page (de-duplicated, insertion-ordered). */
     private val detected = LinkedHashSet<String>()
+
+    /** The current page recognised as a video page (e.g. a YouTube watch page), if any. */
+    private var pageVideo: PageVideoMatch? = null
     private lateinit var detectedAdapter: DetectedAdapter
     private var pendingDirect: DetectedMedia? = null
 
@@ -101,12 +106,10 @@ class BrowserFragment : Fragment() {
             }
         }
         binding.browserDetectedButton.setOnClickListener {
-            if (detected.isEmpty()) {
-                Toast.makeText(requireContext(), R.string.detected_none, Toast.LENGTH_SHORT).show()
-            } else {
-                binding.detectedPanel.visibility =
-                    if (binding.detectedPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            }
+            // Always open the panel: when nothing was detected it shows a hint
+            // explaining the «تنزيل الصفحة» fallback instead of a blank list.
+            binding.detectedPanel.visibility =
+                if (binding.detectedPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
         binding.detectedClose.setOnClickListener { binding.detectedPanel.visibility = View.GONE }
 
@@ -141,6 +144,7 @@ class BrowserFragment : Fragment() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 // A new page means a fresh detection list.
                 detected.clear()
+                pageVideo = null
                 if (_binding != null) {
                     refreshDetectedUi()
                     binding.detectedPanel.visibility = View.GONE
@@ -153,9 +157,17 @@ class BrowserFragment : Fragment() {
                 if (_binding == null) return
                 binding.browserProgress.visibility = View.GONE
                 if (url != null && !binding.browserUrl.hasFocus()) binding.browserUrl.setText(url)
+                updatePageVideo(url)
                 binding.browserBack.isEnabled = web.canGoBack()
                 binding.browserForward.isEnabled = web.canGoForward()
                 updateBackCallback()
+            }
+
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                // SPA navigations (YouTube, Instagram…) change the URL without a
+                // full page load, so re-check the page-video patterns here too.
+                if (_binding != null) updatePageVideo(url)
             }
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
@@ -171,9 +183,34 @@ class BrowserFragment : Fragment() {
         }
     }
 
+    /**
+     * Direct-media test for sniffed requests. A URL counts when a known media
+     * extension ends the path (…/clip.mp4) or a query value (…/stream?file=clip.mp4).
+     * YouTube's googlevideo playback URLs are deliberately excluded: they are
+     * session/IP-bound split streams that cannot be downloaded directly —
+     * YouTube pages are covered by the page-video patterns instead.
+     */
     private fun isMediaUrl(url: String): Boolean {
-        val path = Uri.parse(url).path?.lowercase() ?: return false
-        return MEDIA_EXTENSIONS.any { path.endsWith(it) }
+        val uri = Uri.parse(url)
+        val host = uri.host?.lowercase() ?: return false
+        if (host == "googlevideo.com" || host.endsWith(".googlevideo.com")) return false
+        val path = uri.path?.lowercase().orEmpty()
+        if (MEDIA_EXTENSIONS.any { path.endsWith(it) }) return true
+        val query = uri.query?.lowercase().orEmpty()
+        if (query.isBlank()) return false
+        return query.split('&').any { part ->
+            val value = part.substringAfter('=', "")
+            MEDIA_EXTENSIONS.any { value.endsWith(it) }
+        }
+    }
+
+    /** Re-evaluates whether the current page is a known video page. */
+    private fun updatePageVideo(url: String?) {
+        val match = PageVideo.detect(url)
+        if (match != pageVideo) {
+            pageVideo = match
+            if (_binding != null) refreshDetectedUi()
+        }
     }
 
     private fun submitAddress() {
@@ -201,11 +238,23 @@ class BrowserFragment : Fragment() {
     }
 
     private fun refreshDetectedUi() {
-        binding.browserDetectedButton.text = getString(R.string.detected_videos, detected.size)
-        detectedAdapter.items = synchronized(detected) {
+        val sniffed = synchronized(detected) {
             detected.map { DetectedMedia(url = it, fileName = fileNameOf(it)) }
         }
-        if (detected.isEmpty()) binding.detectedPanel.visibility = View.GONE
+        // The recognised page video is pinned above any sniffed direct files.
+        val pageEntry = pageVideo?.let {
+            DetectedMedia(
+                url = it.url,
+                fileName = getString(R.string.detected_page_video, it.siteName),
+                isPageVideo = true
+            )
+        }
+        val items = listOfNotNull(pageEntry) + sniffed
+        binding.browserDetectedButton.text = getString(R.string.detected_videos, items.size)
+        detectedAdapter.items = items
+        // Empty state: a hint inside the panel instead of a blank list.
+        binding.detectedEmptyHint.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        binding.detectedList.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun updateBackCallback() {
@@ -261,6 +310,6 @@ class BrowserFragment : Fragment() {
         private const val HOME_URL = "https://duckduckgo.com/"
         private const val DESKTOP_UA =
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-        private val MEDIA_EXTENSIONS = listOf(".mp4", ".m3u8", ".webm", ".mkv", ".mp3", ".m4a")
+        private val MEDIA_EXTENSIONS = listOf(".mp4", ".m3u8", ".mpd", ".webm", ".mkv", ".mp3", ".m4a")
     }
 }

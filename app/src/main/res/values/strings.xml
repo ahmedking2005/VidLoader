@@ -113,6 +113,8 @@
     <string name="detected_videos">فيديوهات مكتشفة (%1$d)</string>
     <string name="detected_title">فيديوهات مكتشفة في هذه الصفحة</string>
     <string name="detected_none">لا توجد روابط فيديو مكتشفة في هذه الصفحة بعد</string>
+    <string name="detected_page_video">فيديو هذه الصفحة — %1$s</string>
+    <string name="detected_empty_hint">لم يتم رصد ملفات فيديو مباشرة في هذه الصفحة — لو الصفحة من موقع مدعوم (يوتيوب وغيره) جرّب زر تنزيل الصفحة</string>
     <string name="direct_download">تنزيل مباشر</string>
     <string name="open_in_downloader">فتح في المنزّل</string>
     <string name="close">إغلاق</string>

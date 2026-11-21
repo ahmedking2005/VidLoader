@@ -118,6 +118,15 @@
                 android:text="@string/close" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/detected_empty_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:text="@string/detected_empty_hint"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:visibility="gone" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/detected_list"
             android:layout_width="match_parent"
