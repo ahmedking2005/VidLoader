@@ -8,7 +8,7 @@
     <string name="nav_settings">الإعدادات</string>
 
     <!-- الرئيسية -->
-    <string name="home_hint">الصق رابط الفيديو هنا</string>
+    <string name="home_hint">الصق رابط الفيديو هنا — يمكنك لصق عدة روابط، كل رابط في سطر</string>
     <string name="paste">لصق</string>
     <string name="fetch_info">جلب المعلومات</string>
     <string name="home_subtitle">يدعم يوتيوب ومئات المواقع الأخرى</string>
@@ -117,4 +117,21 @@
     <string name="open_in_downloader">فتح في المنزّل</string>
     <string name="close">إغلاق</string>
     <string name="shared_video">فيديو مشترك</string>
+
+    <!-- إيقاف مؤقت واستئناف -->
+    <string name="pause">إيقاف مؤقت</string>
+    <string name="resume">استئناف</string>
+    <string name="paused_downloads">تنزيلات موقوفة</string>
+    <string name="download_paused">أُوقف التنزيل مؤقتًا — يمكنك استئنافه من المكتبة</string>
+    <string name="notif_paused">متوقف مؤقتًا: %1$s</string>
+    <string name="paused_progress">توقف عند %1$d٪</string>
+    <string name="notif_paused_text">يمكنك الاستئناف من هنا أو من التطبيق</string>
+    <string name="delete_paused_message">سيتم حذف التنزيل الموقوف «%1$s» وملفاته الجزئية نهائيًا.</string>
+    <string name="paused_deleted">تم حذف التنزيل الموقوف</string>
+
+    <!-- الترجمة -->
+    <string name="subtitles_with_video">تنزيل الترجمة مع الفيديو</string>
+
+    <!-- روابط متعددة -->
+    <string name="links_added">أُضيفت %1$d روابط إلى قائمة التنزيل</string>
 </resources>

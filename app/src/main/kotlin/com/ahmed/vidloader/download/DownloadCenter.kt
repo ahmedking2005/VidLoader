@@ -1,11 +1,12 @@
 package com.ahmed.vidloader.download
 
+import com.ahmed.vidloader.data.PausedJob
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Shared state between DownloadService and the UI (same process). */
 object DownloadCenter {
 
-    enum class Status { IDLE, RUNNING, PROCESSING, DONE, ERROR, CANCELLED }
+    enum class Status { IDLE, RUNNING, PROCESSING, DONE, ERROR, CANCELLED, PAUSED }
 
     data class State(
         val status: Status = Status.IDLE,
@@ -26,11 +27,23 @@ object DownloadCenter {
 
     val state = MutableStateFlow(State())
 
+    /**
+     * Jobs stopped with ⏸ pause, mirrored from PausedJobsRepository so the UI
+     * can render them without touching disk. The repository stays the source
+     * of truth across process death; the service and the library screen keep
+     * this flow in sync whenever records change.
+     */
+    val pausedJobs = MutableStateFlow<List<PausedJob>>(emptyList())
+
     @Volatile
     var cancelRequested: Boolean = false
 
+    @Volatile
+    var pauseRequested: Boolean = false
+
     fun reset() {
         cancelRequested = false
+        pauseRequested = false
         state.value = State()
     }
 

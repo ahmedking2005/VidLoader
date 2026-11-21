@@ -60,6 +60,14 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <CheckBox
+                android:id="@+id/subtitles_check_single"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:text="@string/subtitles_with_video" />
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/formats_list"
                 android:layout_width="match_parent"
@@ -145,6 +153,12 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="@string/select_all" />
+
+                    <CheckBox
+                        android:id="@+id/subtitles_check_playlist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/subtitles_with_video" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -245,13 +259,27 @@
                 android:layout_marginTop="6dp"
                 android:textAppearance="?attr/textAppearanceBodySmall" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/cancel_download_button"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/cancel" />
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/pause_download_button"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pause" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/cancel_download_button"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/cancel" />
+            </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>

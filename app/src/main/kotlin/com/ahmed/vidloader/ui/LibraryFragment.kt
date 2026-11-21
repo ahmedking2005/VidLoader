@@ -1,6 +1,8 @@
 package com.ahmed.vidloader.ui
 
+import android.app.NotificationManager
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -8,14 +10,24 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ahmed.vidloader.R
 import com.ahmed.vidloader.data.LibraryItem
 import com.ahmed.vidloader.data.LibraryRepository
+import com.ahmed.vidloader.data.PausedJob
+import com.ahmed.vidloader.data.PausedJobsRepository
+import com.ahmed.vidloader.data.Staging
 import com.ahmed.vidloader.databinding.FragmentLibraryBinding
+import com.ahmed.vidloader.download.DownloadCenter
+import com.ahmed.vidloader.download.DownloadService
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 import java.io.File
 
 class LibraryFragment : Fragment() {
@@ -25,6 +37,8 @@ class LibraryFragment : Fragment() {
 
     private lateinit var repo: LibraryRepository
     private lateinit var adapter: LibraryAdapter
+    private lateinit var pausedRepo: PausedJobsRepository
+    private lateinit var pausedAdapter: PausedAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLibraryBinding.inflate(inflater, container, false)
@@ -41,6 +55,20 @@ class LibraryFragment : Fragment() {
         )
         binding.libraryList.layoutManager = LinearLayoutManager(requireContext())
         binding.libraryList.adapter = adapter
+
+        pausedRepo = PausedJobsRepository(requireContext())
+        pausedAdapter = PausedAdapter(
+            onResume = { resumePaused(it) },
+            onDelete = { confirmDeletePaused(it) }
+        )
+        binding.pausedList.layoutManager = LinearLayoutManager(requireContext())
+        binding.pausedList.adapter = pausedAdapter
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                DownloadCenter.pausedJobs.collect { renderPaused(it) }
+            }
+        }
     }
 
     override fun onResume() {
@@ -58,6 +86,47 @@ class LibraryFragment : Fragment() {
         adapter.items = alive
         binding.emptyText.visibility = if (alive.isEmpty()) View.VISIBLE else View.GONE
         binding.libraryList.visibility = if (alive.isEmpty()) View.GONE else View.VISIBLE
+
+        // Paused jobs: the repository is the source of truth (survives process
+        // death); mirror it into the shared flow the observer renders from.
+        if (::pausedRepo.isInitialized) {
+            val paused = pausedRepo.load()
+            DownloadCenter.pausedJobs.value = paused
+            renderPaused(paused)
+        }
+    }
+
+    private fun renderPaused(paused: List<PausedJob>) {
+        if (_binding == null || !::pausedAdapter.isInitialized) return
+        pausedAdapter.items = paused
+        val visibility = if (paused.isEmpty()) View.GONE else View.VISIBLE
+        binding.pausedHeader.visibility = visibility
+        binding.pausedList.visibility = visibility
+    }
+
+    private fun resumePaused(job: PausedJob) {
+        ContextCompat.startForegroundService(requireContext(), DownloadService.resumeIntent(requireContext(), job.id))
+        Toast.makeText(requireContext(), R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmDeletePaused(job: PausedJob) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.delete_title)
+            .setMessage(getString(R.string.delete_paused_message, job.title))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.delete) { _, _ ->
+                deletePaused(job)
+            }
+            .show()
+    }
+
+    private fun deletePaused(job: PausedJob) {
+        pausedRepo.remove(job.id)
+        Staging.deleteJob(requireContext(), job.id)
+        val manager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(DownloadService.pausedNotificationId(job.id))
+        DownloadCenter.pausedJobs.value = pausedRepo.load()
+        Toast.makeText(requireContext(), R.string.paused_deleted, Toast.LENGTH_SHORT).show()
     }
 
     private fun exists(item: LibraryItem): Boolean {

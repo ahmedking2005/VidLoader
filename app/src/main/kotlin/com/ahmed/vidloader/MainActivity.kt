@@ -9,7 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.ahmed.vidloader.data.PausedJobsRepository
 import com.ahmed.vidloader.databinding.ActivityMainBinding
+import com.ahmed.vidloader.download.DownloadCenter
 import com.ahmed.vidloader.ui.BrowserFragment
 import com.ahmed.vidloader.ui.HomeFragment
 import com.ahmed.vidloader.ui.LibraryFragment
@@ -33,6 +35,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Paused jobs persist on disk across process death; seed the shared
+        // flow so the library's «تنزيلات موقوفة» section is correct immediately.
+        DownloadCenter.pausedJobs.value = PausedJobsRepository(this).load()
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()

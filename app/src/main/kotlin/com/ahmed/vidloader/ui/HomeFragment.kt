@@ -7,10 +7,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.ahmed.vidloader.InfoActivity
 import com.ahmed.vidloader.R
 import com.ahmed.vidloader.databinding.FragmentHomeBinding
+import com.ahmed.vidloader.download.DownloadKind
+import com.ahmed.vidloader.download.DownloadService
+import com.ahmed.vidloader.download.DownloadSpec
 import com.ahmed.vidloader.util.FormatUtils
 
 class HomeFragment : Fragment() {
@@ -32,22 +36,28 @@ class HomeFragment : Fragment() {
         binding.pasteButton.setOnClickListener {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(requireContext())?.toString()
-            val url = FormatUtils.extractUrl(text)
-            if (url == null) {
+            val urls = FormatUtils.extractUrls(text)
+            if (urls.isEmpty()) {
                 Toast.makeText(requireContext(), R.string.error_no_clipboard, Toast.LENGTH_SHORT).show()
             } else {
-                binding.urlInput.setText(url)
+                // Keep every link found (multi-link paste: one URL per line).
+                binding.urlInput.setText(urls.joinToString("\n"))
                 binding.urlLayout.error = null
             }
         }
 
         binding.fetchButton.setOnClickListener {
-            val url = FormatUtils.extractUrl(binding.urlInput.text?.toString())
-            if (url == null) {
-                binding.urlLayout.error = getString(R.string.error_invalid_url)
-            } else {
-                binding.urlLayout.error = null
-                InfoActivity.start(requireContext(), url)
+            val urls = FormatUtils.extractUrls(binding.urlInput.text?.toString())
+            when {
+                urls.isEmpty() -> binding.urlLayout.error = getString(R.string.error_invalid_url)
+                urls.size == 1 -> {
+                    binding.urlLayout.error = null
+                    InfoActivity.start(requireContext(), urls[0])
+                }
+                else -> {
+                    binding.urlLayout.error = null
+                    enqueueLinks(urls)
+                }
             }
         }
 
@@ -59,6 +69,22 @@ class HomeFragment : Fragment() {
             pendingSharedUrl = null
             pendingAutoFetch = false
         }
+    }
+
+    /**
+     * Multi-link paste: every URL becomes its own single-download job in the
+     * service queue, with the default spec (best video ≤1080p — the service's
+     * built-in default selector — subtitles off, --no-playlist per item, so a
+     * playlist link in the list counts as one video only).
+     */
+    private fun enqueueLinks(urls: List<String>) {
+        val spec = DownloadSpec(DownloadKind.VIDEO)
+        for (url in urls) {
+            val intent = DownloadService.startIntent(requireContext(), url, url, spec)
+            ContextCompat.startForegroundService(requireContext(), intent)
+        }
+        binding.urlInput.text?.clear()
+        Toast.makeText(requireContext(), getString(R.string.links_added, urls.size), Toast.LENGTH_LONG).show()
     }
 
     fun setSharedUrl(url: String, autoFetch: Boolean) {

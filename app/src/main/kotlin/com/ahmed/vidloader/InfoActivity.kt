@@ -85,6 +85,9 @@ class InfoActivity : AppCompatActivity() {
         binding.formatsList.adapter = adapter
 
         binding.errorRetry.setOnClickListener { loadInfo() }
+        binding.pauseDownloadButton.setOnClickListener {
+            startService(DownloadService.pauseIntent(this))
+        }
         binding.cancelDownloadButton.setOnClickListener {
             startService(DownloadService.cancelIntent(this))
         }
@@ -290,7 +293,8 @@ class InfoActivity : AppCompatActivity() {
             R.id.quality_mp3 -> DownloadSpec(DownloadKind.AUDIO_MP3, label = getString(R.string.audio_mp3))
             else -> DownloadSpec(DownloadKind.VIDEO, selector = BEST_SELECTOR, label = getString(R.string.best_quality))
         }
-        withStoragePermission { doStartPlaylist(spec, selected) }
+        val specWithSubs = spec.copy(subtitles = binding.subtitlesCheckPlaylist.isChecked)
+        withStoragePermission { doStartPlaylist(specWithSubs, selected) }
     }
 
     private fun doStartPlaylist(spec: DownloadSpec, selected: List<PlaylistEntry>) {
@@ -331,7 +335,8 @@ class InfoActivity : AppCompatActivity() {
     }
 
     private fun doStartDownload(spec: DownloadSpec) {
-        val intent = DownloadService.startIntent(this, videoUrl, videoTitle, spec)
+        val specWithSubs = spec.copy(subtitles = binding.subtitlesCheckSingle.isChecked)
+        val intent = DownloadService.startIntent(this, videoUrl, videoTitle, specWithSubs)
         ContextCompat.startForegroundService(this, intent)
         Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show()
     }
@@ -387,6 +392,12 @@ class InfoActivity : AppCompatActivity() {
                 binding.downloadCard.visibility = View.GONE
                 if (lastStatus != DownloadCenter.Status.CANCELLED) {
                     Toast.makeText(this, R.string.download_cancelled, Toast.LENGTH_SHORT).show()
+                }
+            }
+            DownloadCenter.Status.PAUSED -> {
+                binding.downloadCard.visibility = View.GONE
+                if (lastStatus != DownloadCenter.Status.PAUSED) {
+                    Toast.makeText(this, R.string.download_paused, Toast.LENGTH_LONG).show()
                 }
             }
             DownloadCenter.Status.IDLE -> binding.downloadCard.visibility = View.GONE

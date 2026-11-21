@@ -43,10 +43,22 @@ object FormatUtils {
         return cleaned.take(120).ifBlank { "video" }
     }
 
-    /** Extracts the first http(s) URL from arbitrary text (e.g. shared text), or null. */
-    fun extractUrl(text: String?): String? {
-        if (text.isNullOrBlank()) return null
-        val match = Regex("https?://[^\\s<>\"']+").find(text) ?: return null
-        return match.value.trimEnd('.', ',', ')', ']', '}', '»', '"', '\'')
+    private val URL_REGEX = Regex("https?://[^\\s<>\"']+")
+    private val URL_TRAILING_CHARS = charArrayOf('.', ',', ')', ']', '}', '»', '"', '\'')
+
+    /**
+     * All http(s) URLs in [text], in order of appearance, de-duplicated.
+     * Used for multi-link paste: one URL per line (or anywhere in the text).
+     */
+    fun extractUrls(text: String?): List<String> {
+        if (text.isNullOrBlank()) return emptyList()
+        val seen = LinkedHashSet<String>()
+        for (match in URL_REGEX.findAll(text)) {
+            seen += match.value.trimEnd(*URL_TRAILING_CHARS)
+        }
+        return seen.toList()
     }
+
+    /** Extracts the first http(s) URL from arbitrary text (e.g. shared text), or null. */
+    fun extractUrl(text: String?): String? = extractUrls(text).firstOrNull()
 }
