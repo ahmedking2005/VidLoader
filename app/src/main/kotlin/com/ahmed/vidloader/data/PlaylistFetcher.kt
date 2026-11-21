@@ -1,5 +1,6 @@
 package com.ahmed.vidloader.data
 
+import android.content.Context
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import org.json.JSONObject
@@ -25,10 +26,13 @@ data class PlaylistInfo(
  */
 object PlaylistFetcher {
 
-    fun fetch(url: String): PlaylistInfo? {
+    fun fetch(context: Context, url: String): PlaylistInfo? {
         val request = YoutubeDLRequest(url)
         request.addOption("--flat-playlist")
         request.addOption("-J")
+        // The user's optional cookies file applies here too, so playlists
+        // behind a login resolve the same way downloads do.
+        DownloadSettings.applyCookies(context, request)
         val response = YoutubeDL.getInstance().execute(request)
         val out = response.out?.trim().orEmpty()
         if (out.isEmpty()) return null

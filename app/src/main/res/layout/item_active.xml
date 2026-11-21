@@ -52,6 +52,13 @@
             android:text="@string/resume" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/active_retry"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/retry_failed" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/active_cancel"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"

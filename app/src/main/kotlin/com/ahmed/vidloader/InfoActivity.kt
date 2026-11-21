@@ -85,6 +85,9 @@ class InfoActivity : AppCompatActivity() {
         binding.formatsList.adapter = adapter
 
         binding.errorRetry.setOnClickListener { loadInfo() }
+        binding.sectionToggle.setOnCheckedChangeListener { _, checked ->
+            binding.sectionBox.visibility = if (checked) View.VISIBLE else View.GONE
+        }
         binding.pauseDownloadButton.setOnClickListener {
             // Pause the job this card is mirroring (with parallel downloads
             // that may not be the only one running); fall back to the global
@@ -121,7 +124,7 @@ class InfoActivity : AppCompatActivity() {
                     val app = VidLoaderApp.instance
                     app.initEngineBlocking()
                     if (!app.engineReady) throw IllegalStateException("engine: ${app.engineError}")
-                    PlaylistFetcher.fetch(videoUrl)
+                    PlaylistFetcher.fetch(this@InfoActivity, videoUrl)
                 }
                 if (playlist != null) {
                     showPlaylist(playlist)
@@ -346,10 +349,57 @@ class InfoActivity : AppCompatActivity() {
     }
 
     private fun doStartDownload(spec: DownloadSpec) {
-        val specWithSubs = spec.copy(subtitles = binding.subtitlesCheckSingle.isChecked)
+        val section = readSection() ?: return
+        val specWithSubs = spec.copy(
+            subtitles = binding.subtitlesCheckSingle.isChecked,
+            sectionStartSec = section.first,
+            sectionEndSec = section.second
+        )
         val intent = DownloadService.startIntent(this, videoUrl, videoTitle, specWithSubs)
         ContextCompat.startForegroundService(this, intent)
         Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Reads the «قصّ مقطع» fields (single downloads only — the section box
+     * lives in the single-video layout and never shows in playlist mode).
+     * Returns (startSec, endSec), both null when the cut is off or both
+     * fields are empty; returns null when the input is invalid, after
+     * explaining with a toast. An empty start means 0; an empty end means
+     * "to the end of the video".
+     */
+    private fun readSection(): Pair<Long?, Long?>? {
+        if (!binding.sectionToggle.isChecked) return Pair(null, null)
+        val startText = binding.sectionStart.text?.toString()?.trim().orEmpty()
+        val endText = binding.sectionEnd.text?.toString()?.trim().orEmpty()
+        if (startText.isEmpty() && endText.isEmpty()) return Pair(null, null)
+        val start = if (startText.isEmpty()) 0L else parseTimeToSeconds(startText)
+        val end = if (endText.isEmpty()) null else parseTimeToSeconds(endText)
+        if (start == null || (endText.isNotEmpty() && end == null) ||
+            (end != null && start >= end)
+        ) {
+            Toast.makeText(this, R.string.section_invalid, Toast.LENGTH_LONG).show()
+            return null
+        }
+        return Pair(start, end)
+    }
+
+    /**
+     * Parses "90", "1:30" or "1:01:01" into seconds; null when malformed.
+     * Arabic-Indic digits are normalized to ASCII first.
+     */
+    private fun parseTimeToSeconds(text: String): Long? {
+        val normalized = text.map { ch ->
+            if (ch in '٠'..'٩') '0' + (ch - '٠') else ch
+        }.joinToString("")
+        val parts = normalized.split(":")
+        if (parts.size > 3) return null
+        var total = 0L
+        for (part in parts) {
+            if (part.isEmpty() || !part.all { it.isDigit() }) return null
+            total = total * 60 + part.toLong()
+        }
+        return total
     }
 
     private fun observeDownloads() {

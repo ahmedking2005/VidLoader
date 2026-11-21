@@ -1,5 +1,6 @@
 package com.ahmed.vidloader.download
 
+import com.ahmed.vidloader.data.FailedJob
 import com.ahmed.vidloader.data.PausedJob
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -35,13 +36,14 @@ object DownloadCenter {
     val state = MutableStateFlow(State())
 
     /** Lifecycle of one row in the library's «قيد التنزيل» list. */
-    enum class ActiveStatus { RUNNING, QUEUED, FETCHING, WAITING_WIFI, PAUSED }
+    enum class ActiveStatus { RUNNING, QUEUED, FETCHING, WAITING_WIFI, PAUSED, FAILED }
 
     /**
      * One row of the library's in-progress list, built by DownloadService from
      * its real queue/runtime state (running jobs, the pending queue, jobs
      * blocked by the mobile-data policy). PAUSED rows are merged in by the UI
-     * from [pausedJobs] — the persisted mirror — with [pausedJob] set.
+     * from [pausedJobs] — the persisted mirror — with [pausedJob] set;
+     * FAILED rows likewise come from [failedJobs] with [failedJob] set.
      */
     data class ActiveItem(
         val jobId: String,
@@ -57,8 +59,12 @@ object DownloadCenter {
         val queueTotal: Int = 0,
         /** Items of the job that failed so far (skipped, not fatal). */
         val failedCount: Int = 0,
+        /** Friendly failure text; set only for FAILED rows. */
+        val error: String? = null,
         /** Set only for PAUSED rows: the persisted record behind استئناف/حذف. */
-        val pausedJob: PausedJob? = null
+        val pausedJob: PausedJob? = null,
+        /** Set only for FAILED rows: the persisted record behind إعادة المحاولة/حذف. */
+        val failedJob: FailedJob? = null
     )
 
     /** Live in-progress rows (RUNNING / QUEUED / FETCHING / WAITING_WIFI), published by the service. */
@@ -71,6 +77,13 @@ object DownloadCenter {
      * this flow in sync whenever records change.
      */
     val pausedJobs = MutableStateFlow<List<PausedJob>>(emptyList())
+
+    /**
+     * Jobs that finished with failures, mirrored from FailedJobsRepository
+     * the same way [pausedJobs] mirrors the paused store. The UI renders
+     * them as FAILED rows in the in-progress tab (إعادة المحاولة / حذف).
+     */
+    val failedJobs = MutableStateFlow<List<FailedJob>>(emptyList())
 
     fun isBusy(): Boolean {
         val s = state.value.status

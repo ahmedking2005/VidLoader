@@ -182,4 +182,29 @@
     <string name="theme_system">استخدام إعدادات النظام</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">داكن</string>
+
+    <!-- v1.7: قصّ المقاطع -->
+    <string name="section_cut">قصّ مقطع (تنزيل جزء من الفيديو فقط)</string>
+    <string name="section_start_hint">من (مم:ثث)</string>
+    <string name="section_end_hint">إلى (مم:ثث) — اختياري</string>
+    <string name="section_invalid">وقت القصّ غير صالح — استخدم صيغة مم:ثث وتأكد أن البداية قبل النهاية</string>
+
+    <!-- v1.7: SponsorBlock + الكوكيز -->
+    <string name="sponsorblock">إزالة الإعلانات والرعاة من يوتيوب</string>
+    <string name="sponsorblock_desc">يحذف مقاطع الرعاة والمقدمات والنهايات من فيديوهات يوتيوب أثناء التنزيل (SponsorBlock)</string>
+    <string name="cookies_title">ملف الكوكيز (اختياري)</string>
+    <string name="cookies_none">غير مُعدّ</string>
+    <string name="cookies_import">استيراد</string>
+    <string name="cookies_remove">إزالة</string>
+    <string name="cookies_hint">للمحتوى الذي يتطلب تسجيل الدخول — يبقى الملف على جهازك فقط</string>
+    <string name="cookies_imported">تم استيراد ملف الكوكيز</string>
+    <string name="cookies_import_failed">تعذّر استيراد ملف الكوكيز</string>
+    <string name="cookies_removed">تمت إزالة ملف الكوكيز</string>
+
+    <!-- v1.7: الفشل وإعادة المحاولة -->
+    <string name="error_link_expired">انتهى الرابط</string>
+    <string name="failed_label">فشل</string>
+    <string name="retry_failed">إعادة المحاولة</string>
+    <string name="delete_failed_message">سيتم حذف سجل التنزيل الفاشل «%1$s» من القائمة.</string>
+    <string name="failed_deleted">تم حذف السجل</string>
 </resources>

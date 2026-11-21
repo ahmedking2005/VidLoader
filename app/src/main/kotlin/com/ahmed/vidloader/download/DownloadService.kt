@@ -25,14 +25,19 @@ import com.ahmed.vidloader.MainActivity
 import com.ahmed.vidloader.R
 import com.ahmed.vidloader.VidLoaderApp
 import com.ahmed.vidloader.data.DownloadSettings
+import com.ahmed.vidloader.data.FailedJob
+import com.ahmed.vidloader.data.FailedJobsRepository
 import com.ahmed.vidloader.data.LibraryItem
 import com.ahmed.vidloader.data.LibraryRepository
 import com.ahmed.vidloader.data.PausedJob
 import com.ahmed.vidloader.data.PausedJobItem
 import com.ahmed.vidloader.data.PausedJobsRepository
 import com.ahmed.vidloader.data.PlaylistFetcher
+import com.ahmed.vidloader.data.QueueJob
+import com.ahmed.vidloader.data.QueueJobsRepository
 import com.ahmed.vidloader.data.Staging
 import com.ahmed.vidloader.util.FormatUtils
+import com.ahmed.vidloader.util.PageVideo
 import com.ahmed.vidloader.util.friendlyError
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -50,7 +55,11 @@ data class DownloadSpec(
     val selector: String? = null,
     val label: String = "",
     /** Also fetch subtitles (ar, then en) as .srt sidecars. Video downloads only. */
-    val subtitles: Boolean = false
+    val subtitles: Boolean = false,
+    /** Clip cut: keep only [sectionStartSec, sectionEndSec) of the video. Null start = from 0. */
+    val sectionStartSec: Long? = null,
+    /** Clip cut end in seconds; null = to the end of the video. */
+    val sectionEndSec: Long? = null
 )
 
 class DownloadService : Service() {
@@ -71,7 +80,11 @@ class DownloadService : Service() {
         val playlistIndex: Int? = null,
         val slot: Int = 0,
         /** Quick-download item: no info was fetched up front, so the title is learned from the .info.json the download itself writes. */
-        val quick: Boolean = false
+        val quick: Boolean = false,
+        /** Clip cut (seconds from the start), or null for a full download. Rides through pause/resume/queue persistence. */
+        val sectionStartSec: Long? = null,
+        /** Clip cut end (seconds), or null = to the end of the video. */
+        val sectionEndSec: Long? = null
     )
 
     /** A group of items started together (a single video = a job of one item; a playlist selection = one batch job). */
@@ -128,6 +141,16 @@ class DownloadService : Service() {
         var succeeded = 0
         var failed = 0
 
+        /**
+         * Index of the first not-yet-finished item of [job]. The persisted
+         * queue record stores items from here on, so a job interrupted by
+         * process death is restored with exactly its remaining tail.
+         */
+        @Volatile var remainingFromIndex = 0
+
+        /** Items that failed after all retries, with their final error — feeds the failed-jobs record. */
+        val failedItems = mutableListOf<Pair<WorkItem, String?>>()
+
         @Volatile var lastError: String? = null
     }
 
@@ -161,13 +184,17 @@ class DownloadService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // Publish the persisted paused jobs, and prune staging directories that
-        // belong to no paused job (leftovers of jobs that died with the process:
-        // killed mid-download, cancelled, or finished without cleanup).
-        val repo = PausedJobsRepository(this)
-        val paused = repo.load()
+        // Publish the persisted paused + failed jobs, restore the persisted
+        // queue (jobs that still owe work — pending, Wi-Fi-waiting, or
+        // interrupted mid-run by process death), and prune staging
+        // directories that belong to no surviving job.
+        val pausedRepo = PausedJobsRepository(this)
+        val paused = pausedRepo.load()
         DownloadCenter.pausedJobs.value = paused
-        val keep = paused.map { it.id }.toSet()
+        DownloadCenter.failedJobs.value = FailedJobsRepository(this).load()
+
+        val restored = restoreQueue(paused.map { it.id }.toSet())
+        val keep = paused.map { it.id }.toSet() + restored
         Staging.root(this).listFiles()?.forEach { dir ->
             if (dir.isDirectory && dir.name !in keep) dir.deleteRecursively()
         }
@@ -210,6 +237,23 @@ class DownloadService : Service() {
             ACTION_DISCARD -> {
                 intent.getStringExtra(EXTRA_JOB_ID)?.let { discardPaused(it) }
                 if (!hasWork()) stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_RETRY_FAILED -> {
+                // Re-enqueue a failed record's items as a FRESH job (new id,
+                // fresh staging); the record itself is consumed.
+                val record = intent.getStringExtra(EXTRA_JOB_ID)?.let { recordId ->
+                    val repo = FailedJobsRepository(this)
+                    repo.getById(recordId)?.also {
+                        repo.remove(recordId)
+                        DownloadCenter.failedJobs.value = repo.load()
+                    }
+                }
+                if (record != null) {
+                    submitJob(record.toWorkJob())
+                } else if (!hasWork()) {
+                    stopSelf()
+                }
                 return START_NOT_STICKY
             }
         }
@@ -257,12 +301,109 @@ class DownloadService : Service() {
             }
         }
         val busy = synchronized(queueLock) { runtimes.isNotEmpty() || pendingJobs.size > 1 }
+        persistQueue()
         publishActiveItems()
         ensureForeground(job)
         if (startCoordinator) {
             coordinatorExecutor.execute { coordinatorLoop() }
         } else if (busy) {
             Toast.makeText(this, R.string.download_queued, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Loads the persisted queue back into [pendingJobs] (process-death
+     * restore, called once from onCreate) and starts the coordinator when
+     * anything was restored. Records whose id also exists in the paused
+     * store are skipped — the paused record wins, so a job paused in the
+     * same instant the process died is restored once, as PAUSED. Returns
+     * the restored job ids (their staging directories must survive the
+     * onCreate prune).
+     */
+    private fun restoreQueue(pausedIds: Set<String>): Set<String> {
+        val records = QueueJobsRepository(this).load()
+            .filter { it.id !in pausedIds }
+        if (records.isEmpty()) return emptySet()
+        val jobs = records.map { it.toWorkJob() }
+        val startCoordinator = synchronized(queueLock) {
+            jobs.forEach { pendingJobs.addLast(it) }
+            if (coordinatorRunning) {
+                queueLock.notifyAll()
+                false
+            } else {
+                coordinatorRunning = true
+                true
+            }
+        }
+        // Rewrite the store in its deduped, normalized form.
+        persistQueue()
+        publishActiveItems()
+        jobs.firstOrNull()?.let { ensureForeground(it) }
+        if (startCoordinator) {
+            coordinatorExecutor.execute { coordinatorLoop() }
+        }
+        return jobs.map { it.id }.toSet()
+    }
+
+    /**
+     * Rewrites queue_jobs.json from the service's live state: every pending
+     * job in order, plus every running job with only its not-yet-finished
+     * items (from [JobRuntime.remainingFromIndex] — an unexpanded quick
+     * playlist keeps its expansion target instead). Called on EVERY queue
+     * mutation, so the disk always mirrors the work still owed; a job that
+     * finished, was cancelled, or moved to the paused store simply drops
+     * out of the snapshot and can never be resurrected.
+     */
+    private fun persistQueue() {
+        val snapshot = synchronized(queueLock) {
+            val records = mutableListOf<QueueJob>()
+            runtimes.values.sortedBy { it.seq }.forEach { rt ->
+                // A job being cancelled is already gone from the user's
+                // point of view: never write it back to disk, not even in
+                // the window before its worker notices the flag.
+                if (rt.control.cancelRequested) return@forEach
+                val job = rt.job
+                records += if (job.expandUrl != null) {
+                    QueueJob(
+                        id = job.id,
+                        label = job.label,
+                        isBatch = job.isBatch,
+                        items = emptyList(),
+                        positionOffset = job.positionOffset,
+                        expandUrl = job.expandUrl,
+                        expandKind = job.expandSpec?.kind?.name,
+                        expandSelector = job.expandSpec?.selector
+                    )
+                } else {
+                    QueueJob(
+                        id = job.id,
+                        label = job.label,
+                        isBatch = job.isBatch,
+                        items = job.items.drop(rt.remainingFromIndex).map { it.toPersistedItem() },
+                        positionOffset = job.positionOffset + rt.remainingFromIndex
+                    )
+                }
+            }
+            pendingJobs.forEach { job ->
+                records += QueueJob(
+                    id = job.id,
+                    label = job.label,
+                    isBatch = job.isBatch,
+                    items = job.items.map { it.toPersistedItem() },
+                    positionOffset = job.positionOffset,
+                    expandUrl = job.expandUrl,
+                    expandKind = job.expandSpec?.kind?.name,
+                    expandSelector = job.expandSpec?.selector
+                )
+            }
+            records
+        }
+        try {
+            QueueJobsRepository(this).replaceAll(snapshot)
+        } catch (e: Exception) {
+            // Persistence must never break a download; the in-memory queue
+            // stays authoritative for this process lifetime.
+            Log.w(TAG, "queue persist failed", e)
         }
     }
 
@@ -295,6 +436,7 @@ class DownloadService : Service() {
                     if (done) coordinatorRunning = false
                     done
                 }
+                if (toStart.isNotEmpty()) persistQueue()
                 toStart.forEach { rt -> workerPool.execute { runJob(rt) } }
                 publishActiveItems()
                 refreshJobNotifications()
@@ -400,6 +542,9 @@ class DownloadService : Service() {
             ids
         }
         pids.forEach { destroyProcess(it) }
+        // Queued jobs vanish from the persisted queue at once; running jobs
+        // drop out when their workers finish (runJob's final snapshot).
+        persistQueue()
         publishActiveItems()
     }
 
@@ -417,6 +562,10 @@ class DownloadService : Service() {
             queueLock.notifyAll()
         }
         pid?.let { destroyProcess(it) }
+        // A queued job's persisted record is removed here and now, so a
+        // cancel can never be resurrected by a later process-death restore;
+        // a running job drops out via runJob's final snapshot.
+        persistQueue()
         val manager = getSystemService(NotificationManager::class.java)
         manager.cancel(jobProgressId(jobId))
         publishActiveItems()
@@ -439,24 +588,70 @@ class DownloadService : Service() {
 
     // endregion
 
+    private fun PausedJobItem.toWorkItem(): WorkItem = WorkItem(
+        url = url,
+        title = title,
+        kind = runCatching { DownloadKind.valueOf(kind) }.getOrDefault(DownloadKind.VIDEO),
+        selector = selector,
+        subtitles = subtitles,
+        playlistIndex = playlistIndex,
+        slot = slot,
+        quick = quick,
+        sectionStartSec = sectionStartSec,
+        sectionEndSec = sectionEndSec
+    )
+
+    private fun WorkItem.toPersistedItem(): PausedJobItem = PausedJobItem(
+        url = url,
+        title = title,
+        kind = kind.name,
+        selector = selector,
+        subtitles = subtitles,
+        playlistIndex = playlistIndex,
+        slot = slot,
+        quick = quick,
+        sectionStartSec = sectionStartSec,
+        sectionEndSec = sectionEndSec
+    )
+
     private fun PausedJob.toWorkJob(): WorkJob = WorkJob(
         id = id,
         label = label,
         isBatch = isBatch,
         positionOffset = (queuePosition - 1).coerceAtLeast(0),
-        items = items.map { item ->
-            WorkItem(
-                url = item.url,
-                title = item.title,
-                kind = runCatching { DownloadKind.valueOf(item.kind) }.getOrDefault(DownloadKind.VIDEO),
-                selector = item.selector,
-                subtitles = item.subtitles,
-                playlistIndex = item.playlistIndex,
-                slot = item.slot,
-                quick = item.quick
+        items = items.map { it.toWorkItem() }
+    )
+
+    private fun QueueJob.toWorkJob(): WorkJob = WorkJob(
+        id = id,
+        label = label,
+        isBatch = isBatch,
+        positionOffset = positionOffset,
+        items = items.map { it.toWorkItem() },
+        expandUrl = expandUrl,
+        expandSpec = expandUrl?.let {
+            DownloadSpec(
+                kind = runCatching { DownloadKind.valueOf(expandKind ?: "VIDEO") }
+                    .getOrDefault(DownloadKind.VIDEO),
+                selector = expandSelector
             )
         }
     )
+
+    /**
+     * A failed record becomes a FRESH job: new id (hence fresh staging —
+     * the original partials were deleted with each final failure) and the
+     * failed items re-slotted from 0, exactly like a newly built batch.
+     */
+    private fun FailedJob.toWorkJob(): WorkJob {
+        val newItems = items.mapIndexed { i, item -> item.copy(slot = i).toWorkItem() }
+        return WorkJob(
+            id = UUID.randomUUID().toString(),
+            label = label,
+            isBatch = isBatch || newItems.size > 1,
+            items = newItems
+        )
+    }
 
     private fun parseJob(intent: Intent): WorkJob? {
         val kind = intent.getStringExtra(EXTRA_KIND)
@@ -507,6 +702,8 @@ class DownloadService : Service() {
 
         val url = intent.getStringExtra(EXTRA_URL) ?: return null
         val quick = intent.getBooleanExtra(EXTRA_QUICK, false)
+        val sectionStart = intent.getLongExtra(EXTRA_SECTION_START, -1L).takeIf { it >= 0 }
+        val sectionEnd = intent.getLongExtra(EXTRA_SECTION_END, -1L).takeIf { it >= 0 }
         val rawTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         val title = if (quick && rawTitle.isBlank()) placeholderTitle(url) else rawTitle
         return WorkJob(
@@ -516,7 +713,8 @@ class DownloadService : Service() {
             items = listOf(
                 WorkItem(
                     url = url, title = title, kind = kind, selector = selector,
-                    subtitles = subtitles, slot = 0, quick = quick
+                    subtitles = subtitles, slot = 0, quick = quick,
+                    sectionStartSec = sectionStart, sectionEndSec = sectionEnd
                 )
             )
         )
@@ -562,6 +760,11 @@ class DownloadService : Service() {
                 notifyJobProgress(rt)
                 job = expandQuickPlaylist(job)
                 rt.job = job
+                // The persisted record held the expansion target; now that
+                // the real items exist, persist them so a death from here
+                // on restores the expanded job, not the expansion.
+                rt.remainingFromIndex = 0
+                persistQueue()
             }
 
             val total = job.items.size
@@ -582,6 +785,7 @@ class DownloadService : Service() {
                 }
                 rt.currentItem = item
                 rt.currentIndex = i
+                rt.remainingFromIndex = i
                 rt.progress = -1f
                 rt.etaSeconds = -1
                 rt.speed = ""
@@ -592,9 +796,12 @@ class DownloadService : Service() {
                 publishActiveItems()
                 notifyJobProgress(rt)
 
-                when (downloadOne(rt, item)) {
+                when (downloadWithRetries(rt, item)) {
                     ItemOutcome.SUCCESS -> rt.succeeded++
-                    ItemOutcome.FAILED -> rt.failed++
+                    ItemOutcome.FAILED -> {
+                        rt.failed++
+                        rt.failedItems += item to rt.lastError
+                    }
                     ItemOutcome.CANCELLED -> cancelled = true
                     ItemOutcome.PAUSED -> {
                         pausedAt = i
@@ -603,6 +810,11 @@ class DownloadService : Service() {
                 }
                 rt.processId = null
                 if (cancelled || pausedAt >= 0) break
+                // The item is finished either way (downloaded or given up
+                // on): shrink the persisted remaining tail right now, so a
+                // process death after this point never re-runs it.
+                rt.remainingFromIndex = i + 1
+                persistQueue()
             }
 
             when {
@@ -640,6 +852,8 @@ class DownloadService : Service() {
                             failedCount = rt.failed
                         )
                     }
+                    // Partial success still owes the user its failed items.
+                    if (rt.failed > 0) recordFailedJob(job.withCurrentLabel(), rt)
                     notifyJobFinished(job.withCurrentLabel(), rt.succeeded, rt.failed, job.id)
                 }
                 else -> {
@@ -651,6 +865,7 @@ class DownloadService : Service() {
                             failedCount = rt.failed
                         )
                     }
+                    recordFailedJob(job.withCurrentLabel(), rt)
                     notifyJobFailed(job.withCurrentLabel(), job.id)
                 }
             }
@@ -659,10 +874,98 @@ class DownloadService : Service() {
                 runtimes.remove(job.id)
                 queueLock.notifyAll()
             }
+            // The job is over (done / failed / paused / cancelled): it drops
+            // out of the persisted queue. A paused job lives on in the
+            // paused store instead — never in both.
+            persistQueue()
             val manager = getSystemService(NotificationManager::class.java)
             manager.cancel(jobProgressId(job.id))
             publishActiveItems()
             refreshJobNotifications()
+        }
+    }
+
+    /**
+     * Persists a failed-jobs record holding exactly [rt]'s failed items
+     * (post-retry), so the user can re-run just those from the library.
+     * Items that succeeded on any attempt are not in [JobRuntime.failedItems]
+     * and never land here.
+     */
+    private fun recordFailedJob(job: WorkJob, rt: JobRuntime) {
+        if (rt.failedItems.isEmpty()) return
+        val repo = FailedJobsRepository(this)
+        repo.add(
+            FailedJob(
+                id = UUID.randomUUID().toString(),
+                label = job.label,
+                isBatch = job.isBatch,
+                items = rt.failedItems.map { (item, _) -> item.toPersistedItem() },
+                lastError = rt.failedItems.lastOrNull()?.second ?: rt.lastError,
+                failedAtMillis = System.currentTimeMillis()
+            )
+        )
+        DownloadCenter.failedJobs.value = repo.load()
+    }
+
+    /**
+     * Runs one item with automatic retries: up to [MAX_ITEM_ATTEMPTS]
+     * attempts, waiting ~10s then ~30s between them. Every attempt is a
+     * FRESH [downloadOne] call — a brand-new YoutubeDLRequest executed from
+     * scratch — so the stream URLs are re-extracted on each attempt; for
+     * extractor downloads that re-extraction IS the expired-link refresh.
+     * (DIRECT items have no extractor: their retries reuse the same URL,
+     * and a final 403/410 surfaces as «انتهى الرابط».) A pause/cancel
+     * requested during the wait aborts the retry loop immediately and the
+     * item ends PAUSED/CANCELLED, never FAILED.
+     */
+    private fun downloadWithRetries(rt: JobRuntime, item: WorkItem): ItemOutcome {
+        var attempt = 0
+        while (true) {
+            val outcome = downloadOne(rt, item, keepStagingOnFailure = attempt < MAX_ITEM_ATTEMPTS - 1)
+            if (outcome != ItemOutcome.FAILED) return outcome
+            if (attempt >= MAX_ITEM_ATTEMPTS - 1) return ItemOutcome.FAILED
+            val delayMs = if (attempt == 0) RETRY_DELAY_FIRST_MS else RETRY_DELAY_SECOND_MS
+            attempt++
+            when (waitRetryDelay(rt, delayMs)) {
+                ItemOutcome.PAUSED -> return ItemOutcome.PAUSED
+                ItemOutcome.CANCELLED -> return ItemOutcome.CANCELLED
+                else -> Unit // delay elapsed — fall through to the next attempt
+            }
+            // Reset the per-attempt display state so the new attempt starts clean.
+            rt.progress = -1f
+            rt.etaSeconds = -1
+            rt.speed = ""
+            rt.processing = false
+            publishActiveItems()
+            notifyJobProgress(rt)
+        }
+    }
+
+    /**
+     * Interruptible retry wait: sleeps in short slices so a pause/cancel
+     * lands within ~250ms instead of after the full delay. Returns the
+     * PAUSED/CANCELLED outcome to propagate, or SUCCESS when the delay
+     * simply elapsed (SUCCESS here means "proceed", not a finished item).
+     */
+    private fun waitRetryDelay(rt: JobRuntime, delayMs: Long): ItemOutcome {
+        var waited = 0L
+        while (waited < delayMs) {
+            if (rt.control.cancelRequested) return ItemOutcome.CANCELLED
+            if (rt.control.pauseRequested) return ItemOutcome.PAUSED
+            val slice = minOf(RETRY_POLL_SLICE_MS, delayMs - waited)
+            try {
+                Thread.sleep(slice)
+            } catch (e: InterruptedException) {
+                // Treated as a wake-up: the flag checks above decide what happens.
+            }
+            waited += slice
+        }
+        return if (rt.control.cancelRequested) {
+            ItemOutcome.CANCELLED
+        } else if (rt.control.pauseRequested) {
+            ItemOutcome.PAUSED
+        } else {
+            ItemOutcome.SUCCESS
         }
     }
 
@@ -682,7 +985,7 @@ class DownloadService : Service() {
         app.initEngineBlocking()
         val info = if (app.engineReady) {
             try {
-                PlaylistFetcher.fetch(url)
+                PlaylistFetcher.fetch(this, url)
             } catch (e: Exception) {
                 null
             }
@@ -735,18 +1038,7 @@ class DownloadService : Service() {
             id = job.id,
             label = job.label,
             isBatch = job.isBatch,
-            items = remaining.map { item ->
-                PausedJobItem(
-                    url = item.url,
-                    title = item.title,
-                    kind = item.kind.name,
-                    selector = item.selector,
-                    subtitles = item.subtitles,
-                    playlistIndex = item.playlistIndex,
-                    slot = item.slot,
-                    quick = item.quick
-                )
-            },
+            items = remaining.map { item -> item.toPersistedItem() },
             progressPercent = progressPercent.coerceIn(0, 100),
             failedCount = failedCount,
             queuePosition = job.positionOffset + fromIndex + 1,
@@ -764,9 +1056,11 @@ class DownloadService : Service() {
      * throws; the outcome says how it ended. The staging directory is a pure
      * function of (job id, item slot): a resumed attempt reuses the previous
      * attempt's directory untouched, so yt-dlp finds its .part files and
-     * continues. Staging is deleted for every outcome except PAUSED.
+     * continues. Staging is deleted for every outcome except PAUSED — and
+     * except a FAILED attempt that [downloadWithRetries] is about to retry
+     * ([keepStagingOnFailure]), whose partials the next attempt continues.
      */
-    private fun downloadOne(rt: JobRuntime, item: WorkItem): ItemOutcome {
+    private fun downloadOne(rt: JobRuntime, item: WorkItem, keepStagingOnFailure: Boolean = false): ItemOutcome {
         val jobId = rt.job.id
         val staging = Staging.itemDir(this, jobId, item.slot)
         var outcome = ItemOutcome.FAILED
@@ -781,6 +1075,9 @@ class DownloadService : Service() {
             staging.mkdirs()
 
             val request = YoutubeDLRequest(item.url)
+            // The user's optional cookies file (content behind a login).
+            // Added exactly once, here, on the freshly built request.
+            DownloadSettings.applyCookies(this, request)
             if (item.playlistIndex != null) {
                 request.addOption("--playlist-items", item.playlistIndex.toString())
             } else {
@@ -791,6 +1088,20 @@ class DownloadService : Service() {
             val rateLimit = DownloadSettings.rateLimit(this)
             if (rateLimit.isNotBlank()) {
                 request.addOption("--limit-rate", rateLimit)
+            }
+            // SponsorBlock removal: YouTube URLs only. The postprocessor
+            // errors on unsupported extractors, so this host gate (the same
+            // host logic PageVideo uses) is load-bearing — a non-YouTube
+            // request must never carry the flag.
+            if (DownloadSettings.sponsorBlock(this) && PageVideo.isYouTube(item.url)) {
+                request.addOption("--sponsorblock-remove", SPONSORBLOCK_CATEGORIES)
+            }
+            // Clip cut: fetch only the requested section of the video.
+            if (item.sectionStartSec != null || item.sectionEndSec != null) {
+                val start = formatSectionTime(item.sectionStartSec ?: 0)
+                val end = item.sectionEndSec?.let { formatSectionTime(it) } ?: ""
+                request.addOption("--download-sections", "*$start-$end")
+                request.addOption("--force-keyframes-at-cuts")
             }
             request.addOption("-o", File(staging, "%(id)s.%(ext)s").absolutePath)
             if (item.quick) {
@@ -875,7 +1186,7 @@ class DownloadService : Service() {
             val ext = result.extension.lowercase().ifBlank {
                 if (item.kind == DownloadKind.VIDEO) "mp4" else "m4a"
             }
-            val displayName = FormatUtils.sanitizeFileName(item.title) + "." + ext
+            val displayName = FormatUtils.sanitizeFileName(item.title) + sectionFileSuffix(item) + "." + ext
             val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
                 ?: if (item.kind == DownloadKind.VIDEO) "video/mp4" else "audio/mpeg"
 
@@ -917,7 +1228,14 @@ class DownloadService : Service() {
                 rt.control.pauseRequested -> ItemOutcome.PAUSED
                 rt.control.cancelRequested -> ItemOutcome.CANCELLED
                 else -> {
-                    rt.lastError = friendlyError(e)
+                    // A direct link that answers 403/410 is simply dead
+                    // (expired signature / removed file) — say so plainly
+                    // instead of the generic extractor wording.
+                    rt.lastError = if (item.kind == DownloadKind.DIRECT && isExpiredLinkError(e)) {
+                        getString(R.string.error_link_expired)
+                    } else {
+                        friendlyError(e)
+                    }
                     ItemOutcome.FAILED
                 }
             }
@@ -927,10 +1245,46 @@ class DownloadService : Service() {
             // Pause is the only outcome that keeps the partial files for a later resume.
             // (If the partials vanished externally, the resume simply downloads fresh:
             // yt-dlp treats an empty staging directory as a new download.)
-            if (outcome != ItemOutcome.PAUSED) {
+            // A failed attempt that will be retried keeps them too, so the
+            // retry continues the transfer instead of restarting it.
+            if (outcome != ItemOutcome.PAUSED &&
+                !(outcome == ItemOutcome.FAILED && keepStagingOnFailure)
+            ) {
                 staging.deleteRecursively()
             }
         }
+    }
+
+    /** True for the HTTP 403/410 failures that mean a direct link died (expired signature / removed file). */
+    private fun isExpiredLinkError(e: Throwable): Boolean {
+        val m = (e.message ?: "").lowercase()
+        return m.contains("http error 403") || m.contains("http error 410")
+    }
+
+    /** yt-dlp section time: 90 → "1:30", 3661 → "1:01:01". */
+    private fun formatSectionTime(totalSeconds: Long): String {
+        val s = totalSeconds.coerceAtLeast(0)
+        val h = s / 3600
+        val m = (s % 3600) / 60
+        val sec = s % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
+    }
+
+    /** Filename-safe section time (no colons): 90 → "1m30s", 3661 → "1h01m01s". */
+    private fun formatFileTime(totalSeconds: Long): String {
+        val s = totalSeconds.coerceAtLeast(0)
+        val h = s / 3600
+        val m = (s % 3600) / 60
+        val sec = s % 60
+        return if (h > 0) "%dh%02dm%02ds".format(h, m, sec) else "%dm%02ds".format(m, sec)
+    }
+
+    /** " [1m30s-3m45s]" filename suffix for a clip-cut download; "" for full downloads. */
+    private fun sectionFileSuffix(item: WorkItem): String {
+        if (item.sectionStartSec == null && item.sectionEndSec == null) return ""
+        val start = formatFileTime(item.sectionStartSec ?: 0)
+        val end = item.sectionEndSec?.let { formatFileTime(it) } ?: "end"
+        return " [$start-$end]"
     }
 
     /**
@@ -1451,11 +1805,14 @@ class DownloadService : Service() {
         const val ACTION_CANCEL_JOB = "com.ahmed.vidloader.action.CANCEL_JOB"
         const val ACTION_RESUME = "com.ahmed.vidloader.action.RESUME"
         const val ACTION_DISCARD = "com.ahmed.vidloader.action.DISCARD"
+        const val ACTION_RETRY_FAILED = "com.ahmed.vidloader.action.RETRY_FAILED"
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_SELECTOR = "selector"
         private const val EXTRA_SUBTITLES = "subtitles"
+        private const val EXTRA_SECTION_START = "section_start"
+        private const val EXTRA_SECTION_END = "section_end"
         private const val EXTRA_QUICK = "quick"
         private const val EXTRA_QUICK_PLAYLIST_URL = "quick_playlist_url"
         private const val EXTRA_JOB_ID = "job_id"
@@ -1465,6 +1822,15 @@ class DownloadService : Service() {
         private const val EXTRA_TITLES = "playlist_titles"
         private const val CHANNEL_ID = "downloads"
         private const val NOTIF_PROGRESS = 1001
+
+        /** Total attempts per item: the first try plus two automatic retries. */
+        private const val MAX_ITEM_ATTEMPTS = 3
+        private const val RETRY_DELAY_FIRST_MS = 10_000L
+        private const val RETRY_DELAY_SECOND_MS = 30_000L
+        private const val RETRY_POLL_SLICE_MS = 250L
+
+        /** SponsorBlock categories removed when the user enables the setting (YouTube only). */
+        private const val SPONSORBLOCK_CATEGORIES = "sponsor,selfpromo,intro,outro,interaction"
         private val SPEED_REGEX = Regex("at\\s+([0-9.]+\\s*[KMG]i?B/s)")
         private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
 
@@ -1484,6 +1850,8 @@ class DownloadService : Service() {
                 putExtra(EXTRA_KIND, spec.kind.name)
                 putExtra(EXTRA_SELECTOR, spec.selector)
                 putExtra(EXTRA_SUBTITLES, spec.subtitles)
+                putExtra(EXTRA_SECTION_START, spec.sectionStartSec ?: -1L)
+                putExtra(EXTRA_SECTION_END, spec.sectionEndSec ?: -1L)
             }
         }
 
@@ -1564,6 +1932,12 @@ class DownloadService : Service() {
         fun discardIntent(context: Context, jobId: String): Intent {
             return Intent(context, DownloadService::class.java).setAction(ACTION_DISCARD)
                 .putExtra(EXTRA_JOB_ID, jobId)
+        }
+
+        /** ↻ Re-run a failed record's items as a fresh job (library in-progress list). [recordId] is the FailedJob id. */
+        fun retryFailedIntent(context: Context, recordId: String): Intent {
+            return Intent(context, DownloadService::class.java).setAction(ACTION_RETRY_FAILED)
+                .putExtra(EXTRA_JOB_ID, recordId)
         }
     }
 }

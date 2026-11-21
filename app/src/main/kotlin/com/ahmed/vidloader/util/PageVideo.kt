@@ -89,4 +89,16 @@ object PageVideo {
         val rule = RULES.firstOrNull { runCatching { it.matches(uri) }.getOrDefault(false) }
         return rule?.let { PageVideoMatch(siteName = it.siteName, url = url) }
     }
+
+    /**
+     * True when [url] is hosted on YouTube (youtube.com or youtu.be, any
+     * subdomain). Used to gate YouTube-only yt-dlp options (SponsorBlock)
+     * so they never reach extractors that would reject them.
+     */
+    fun isYouTube(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        if (uri.scheme?.lowercase() !in listOf("http", "https")) return false
+        return hostIs(uri, "youtube.com", "youtu.be")
+    }
 }

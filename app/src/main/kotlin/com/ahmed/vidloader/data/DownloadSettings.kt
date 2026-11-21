@@ -2,7 +2,10 @@ package com.ahmed.vidloader.data
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.appcompat.app.AppCompatDelegate
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import java.io.File
 
 /**
  * SharedPreferences-backed «إعدادات التنزيل» (download settings) plus the app
@@ -19,6 +22,8 @@ object DownloadSettings {
     private const val KEY_RATE_LIMIT = "rate_limit"
     private const val KEY_MOBILE_DATA = "mobile_data"
     private const val KEY_THEME = "theme"
+    private const val KEY_SPONSOR_BLOCK = "sponsor_block"
+    private const val KEY_COOKIES_NAME = "cookies_name"
 
     const val THEME_SYSTEM = "system"
     const val THEME_LIGHT = "light"
@@ -110,6 +115,89 @@ object DownloadSettings {
     /** Applies the persisted theme; called once at app start. */
     fun applyTheme(context: Context) {
         AppCompatDelegate.setDefaultNightMode(nightMode(theme(context)))
+    }
+
+    // endregion
+
+    // region SponsorBlock
+
+    /**
+     * When true, YouTube downloads also remove sponsor/self-promo/intro/
+     * outro/interaction segments via SponsorBlock. Default OFF. The flag is
+     * added per request by the service — YouTube URLs only (see PageVideo).
+     */
+    fun sponsorBlock(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SPONSOR_BLOCK, false)
+
+    fun setSponsorBlock(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SPONSOR_BLOCK, value).apply()
+    }
+
+    // endregion
+
+    // region cookies file
+
+    /** Where the imported cookies file lives (internal storage — never leaves the device). */
+    fun cookiesFile(context: Context): File = File(context.filesDir, "cookies.txt")
+
+    /** Absolute path of the imported cookies file, or null when none is set. */
+    fun cookiesPath(context: Context): String? {
+        val file = cookiesFile(context)
+        return if (file.isFile && file.length() > 0) file.absolutePath else null
+    }
+
+    /** Display name of the imported cookies file as shown in settings, or null when none is set. */
+    fun cookiesName(context: Context): String? =
+        prefs(context).getString(KEY_COOKIES_NAME, null)?.takeIf { cookiesPath(context) != null }
+
+    /**
+     * Copies the picked document into internal storage as the cookies file.
+     * Returns the file's display name, or null when the copy failed.
+     */
+    fun importCookies(context: Context, uri: Uri): String? {
+        val name = queryDisplayName(context, uri) ?: uri.lastPathSegment ?: "cookies.txt"
+        return try {
+            val input = context.contentResolver.openInputStream(uri) ?: return null
+            input.use { stream ->
+                cookiesFile(context).outputStream().use { stream.copyTo(it) }
+            }
+            if (cookiesPath(context) == null) return null
+            prefs(context).edit().putString(KEY_COOKIES_NAME, name).apply()
+            name
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Deletes the imported cookies file (if any) and forgets its name. */
+    fun clearCookies(context: Context) {
+        runCatching { cookiesFile(context).delete() }
+        prefs(context).edit().remove(KEY_COOKIES_NAME).apply()
+    }
+
+    /**
+     * Adds `--cookies <path>` to [request] when a cookies file is set. Every
+     * request in the app is built fresh and passes through here exactly once,
+     * so the option can never be duplicated on one request.
+     */
+    fun applyCookies(context: Context, request: YoutubeDLRequest) {
+        cookiesPath(context)?.let { request.addOption("--cookies", it) }
+    }
+
+    private fun queryDisplayName(context: Context, uri: Uri): String? {
+        return try {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0) cursor.getString(idx) else null
+                    } else {
+                        null
+                    }
+                }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     // endregion

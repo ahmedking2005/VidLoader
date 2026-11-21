@@ -21,7 +21,11 @@ data class PausedJobItem(
      * Quick-download item: its stored title is only a placeholder and the real
      * title is learned from the download itself (the .info.json in staging).
      */
-    val quick: Boolean = false
+    val quick: Boolean = false,
+    /** Clip cut (seconds from the start), or null for a full download. */
+    val sectionStartSec: Long? = null,
+    /** Clip cut end (seconds from the start), or null = to the end of the video. */
+    val sectionEndSec: Long? = null
 )
 
 /**
@@ -76,7 +80,9 @@ class PausedJobsRepository(context: Context) {
                         subtitles = io.optBoolean("subtitles"),
                         playlistIndex = if (io.isNull("playlistIndex")) null else io.optInt("playlistIndex"),
                         slot = io.optInt("slot", j),
-                        quick = io.optBoolean("quick")
+                        quick = io.optBoolean("quick"),
+                        sectionStartSec = if (io.isNull("sectionStart")) null else io.optLong("sectionStart"),
+                        sectionEndSec = if (io.isNull("sectionEnd")) null else io.optLong("sectionEnd")
                     )
                 }
                 if (items.isEmpty()) continue
@@ -129,6 +135,8 @@ class PausedJobsRepository(context: Context) {
                         .put("playlistIndex", item.playlistIndex ?: JSONObject.NULL)
                         .put("slot", item.slot)
                         .put("quick", item.quick)
+                        .put("sectionStart", item.sectionStartSec ?: JSONObject.NULL)
+                        .put("sectionEnd", item.sectionEndSec ?: JSONObject.NULL)
                 )
             }
             arr.put(

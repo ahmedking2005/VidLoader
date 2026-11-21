@@ -53,6 +53,21 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    /** Cookies file picker: the document is copied into internal storage by DownloadSettings. */
+    private val cookiesLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val name = DownloadSettings.importCookies(requireContext(), uri)
+            if (name != null) {
+                Toast.makeText(requireContext(), R.string.cookies_imported, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), R.string.cookies_import_failed, Toast.LENGTH_LONG).show()
+            }
+            refreshCookies()
+        }
+    }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
         return binding.root
@@ -97,6 +112,26 @@ class SettingsFragment : Fragment() {
         binding.mobileDataSwitch.setOnCheckedChangeListener { _, checked ->
             DownloadSettings.setMobileDataAllowed(requireContext(), checked)
         }
+        binding.sponsorblockSwitch.isChecked = DownloadSettings.sponsorBlock(requireContext())
+        binding.sponsorblockSwitch.setOnCheckedChangeListener { _, checked ->
+            DownloadSettings.setSponsorBlock(requireContext(), checked)
+        }
+        refreshCookies()
+        binding.cookiesImport.setOnClickListener {
+            cookiesLauncher.launch(arrayOf("*/*"))
+        }
+        binding.cookiesRemove.setOnClickListener {
+            DownloadSettings.clearCookies(requireContext())
+            refreshCookies()
+            Toast.makeText(requireContext(), R.string.cookies_removed, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun refreshCookies() {
+        if (_binding == null) return
+        val name = DownloadSettings.cookiesName(requireContext())
+        binding.cookiesValue.text = name ?: getString(R.string.cookies_none)
+        binding.cookiesRemove.isEnabled = name != null
     }
 
     private fun refreshDownloadPath() {

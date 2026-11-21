@@ -18,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ahmed.vidloader.R
+import com.ahmed.vidloader.data.FailedJob
+import com.ahmed.vidloader.data.FailedJobsRepository
 import com.ahmed.vidloader.data.LibraryItem
 import com.ahmed.vidloader.data.LibraryRepository
 import com.ahmed.vidloader.data.PausedJob
@@ -40,6 +42,7 @@ class LibraryFragment : Fragment() {
     private lateinit var repo: LibraryRepository
     private lateinit var adapter: LibraryAdapter
     private lateinit var pausedRepo: PausedJobsRepository
+    private lateinit var failedRepo: FailedJobsRepository
     private lateinit var activeAdapter: ActiveAdapter
 
     /** The initial tab is picked once, from whether anything is in progress when the screen opens. */
@@ -62,11 +65,14 @@ class LibraryFragment : Fragment() {
         binding.libraryList.adapter = adapter
 
         pausedRepo = PausedJobsRepository(requireContext())
+        failedRepo = FailedJobsRepository(requireContext())
         activeAdapter = ActiveAdapter(
             onPause = { pauseActive(it) },
             onCancel = { cancelActive(it) },
             onResume = { resumePaused(it) },
-            onDeletePaused = { confirmDeletePaused(it) }
+            onDeletePaused = { confirmDeletePaused(it) },
+            onRetryFailed = { retryFailed(it) },
+            onDeleteFailed = { confirmDeleteFailed(it) }
         )
         binding.activeList.layoutManager = LinearLayoutManager(requireContext())
         binding.activeList.adapter = activeAdapter
@@ -83,9 +89,14 @@ class LibraryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // In-progress rows: the service's live queue state, with the
-                // persisted paused jobs merged in as PAUSED rows.
-                combine(DownloadCenter.activeItems, DownloadCenter.pausedJobs) { active, paused ->
-                    active + paused.map { it.toActiveItem() }
+                // persisted paused and failed jobs merged in as PAUSED /
+                // FAILED rows.
+                combine(
+                    DownloadCenter.activeItems,
+                    DownloadCenter.pausedJobs,
+                    DownloadCenter.failedJobs
+                ) { active, paused, failed ->
+                    active + paused.map { it.toActiveItem() } + failed.map { it.toActiveItem() }
                 }.collect { renderActive(it) }
             }
         }
@@ -112,6 +123,16 @@ class LibraryFragment : Fragment() {
         queueTotal = queueTotal,
         failedCount = failedCount,
         pausedJob = this
+    )
+
+    private fun FailedJob.toActiveItem(): DownloadCenter.ActiveItem = DownloadCenter.ActiveItem(
+        jobId = id,
+        title = title,
+        status = DownloadCenter.ActiveStatus.FAILED,
+        isBatch = isBatch,
+        failedCount = items.size,
+        error = lastError,
+        failedJob = this
     )
 
     private fun renderActive(rows: List<DownloadCenter.ActiveItem>) {
@@ -156,6 +177,9 @@ class LibraryFragment : Fragment() {
         if (::pausedRepo.isInitialized) {
             DownloadCenter.pausedJobs.value = pausedRepo.load()
         }
+        if (::failedRepo.isInitialized) {
+            DownloadCenter.failedJobs.value = failedRepo.load()
+        }
     }
 
     private fun resumePaused(job: PausedJob) {
@@ -181,6 +205,29 @@ class LibraryFragment : Fragment() {
         manager.cancel(DownloadService.pausedNotificationId(job.id))
         DownloadCenter.pausedJobs.value = pausedRepo.load()
         Toast.makeText(requireContext(), R.string.paused_deleted, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun retryFailed(job: FailedJob) {
+        // The service consumes the record and re-enqueues its items as a fresh job.
+        ContextCompat.startForegroundService(requireContext(), DownloadService.retryFailedIntent(requireContext(), job.id))
+        Toast.makeText(requireContext(), R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmDeleteFailed(job: FailedJob) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.delete_title)
+            .setMessage(getString(R.string.delete_failed_message, job.title))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.delete) { _, _ ->
+                deleteFailed(job)
+            }
+            .show()
+    }
+
+    private fun deleteFailed(job: FailedJob) {
+        failedRepo.remove(job.id)
+        DownloadCenter.failedJobs.value = failedRepo.load()
+        Toast.makeText(requireContext(), R.string.failed_deleted, Toast.LENGTH_SHORT).show()
     }
 
     private fun exists(item: LibraryItem): Boolean {
