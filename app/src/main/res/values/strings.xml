@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">منزّل الفيديو</string>
+
+    <!-- التنقل -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_library">المكتبة</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- الرئيسية -->
+    <string name="home_hint">الصق رابط الفيديو هنا</string>
+    <string name="paste">لصق</string>
+    <string name="fetch_info">جلب المعلومات</string>
+    <string name="home_subtitle">يدعم يوتيوب ومئات المواقع الأخرى</string>
+    <string name="error_empty_url">أدخل رابطًا أولًا</string>
+    <string name="error_invalid_url">لم يتم العثور على رابط صالح</string>
+    <string name="error_no_clipboard">الحافظة فارغة</string>
+
+    <!-- شاشة المعلومات -->
+    <string name="info_loading">جارٍ جلب معلومات الفيديو…</string>
+    <string name="info_video_qualities">جودات الفيديو</string>
+    <string name="info_audio_only">صوت فقط</string>
+    <string name="info_best_quality">أفضل جودة</string>
+    <string name="audio_m4a">صوت فقط — M4A</string>
+    <string name="audio_mp3">صوت فقط — MP3</string>
+    <string name="download">تنزيل</string>
+    <string name="approx_size">الحجم التقريبي: %1$s</string>
+    <string name="duration_format">المدة: %1$s</string>
+    <string name="from_site">المصدر: %1$s</string>
+
+    <!-- التنزيل -->
+    <string name="downloading">جارٍ التنزيل…</string>
+    <string name="download_progress">%1$d٪</string>
+    <string name="eta_format">المتبقي: %1$s</string>
+    <string name="speed_format">السرعة: %1$s</string>
+    <string name="cancel">إلغاء</string>
+    <string name="download_cancelled">تم إلغاء التنزيل</string>
+    <string name="download_done">اكتمل التنزيل</string>
+    <string name="download_done_body">تم حفظ «%1$s» في التنزيلات</string>
+    <string name="download_failed">فشل التنزيل</string>
+    <string name="download_already_running">يوجد تنزيل آخر جارٍ حاليًا</string>
+    <string name="processing">جارٍ المعالجة والدمج…</string>
+    <string name="open_library">فتح المكتبة</string>
+
+    <!-- المكتبة -->
+    <string name="library_empty">لا توجد تنزيلات بعد.\nستظهر هنا الملفات التي تنزّلها.</string>
+    <string name="action_open">فتح</string>
+    <string name="action_share">مشاركة</string>
+    <string name="action_delete">حذف</string>
+    <string name="delete_confirm_title">حذف الملف؟</string>
+    <string name="delete_confirm_body">سيتم حذف «%1$s» نهائيًا.</string>
+    <string name="yes">نعم</string>
+    <string name="no">لا</string>
+    <string name="file_missing">الملف غير موجود</string>
+    <string name="no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
+
+    <!-- الإعدادات -->
+    <string name="settings_engine_title">محرك الاستخراج (yt-dlp)</string>
+    <string name="settings_engine_desc">تحديث المحرك يحل أغلب مشاكل التنزيل من يوتيوب عند تغيّر نظامه.</string>
+    <string name="update_engine">تحديث محرك الاستخراج</string>
+    <string name="updating_engine">جارٍ تحديث المحرك…</string>
+    <string name="update_success">تم تحديث المحرك بنجاح</string>
+    <string name="update_already_latest">المحرك محدّث — لا يوجد تحديث جديد</string>
+    <string name="update_failed">فشل تحديث المحرك: %1$s</string>
+    <string name="settings_about_title">حول التطبيق</string>
+    <string name="settings_about_desc">منزّل الفيديو — إصدار %1$s\nتُحفظ التنزيلات في مجلد Downloads/VidLoader على الجهاز.</string>
+    <string name="settings_storage_note">على أندرويد 9 وما قبله يحتاج التطبيق إذن التخزين لحفظ الملفات في مجلد التنزيلات.</string>
+
+    <!-- الإشعارات -->
+    <string name="notif_channel_downloads">التنزيلات</string>
+    <string name="notif_downloading">جارٍ تنزيل: %1$s</string>
+    <string name="notif_done">اكتمل التنزيل: %1$s</string>
+    <string name="notif_failed">فشل تنزيل: %1$s</string>
+    <string name="notif_tap_to_open_library">اضغط لفتح المكتبة</string>
+
+    <!-- أخطاء عامة -->
+    <string name="error_engine_not_ready">محرك التنزيل غير جاهز بعد، انتظر ثواني وحاول مجددًا</string>
+    <string name="error_generic">حدث خطأ غير متوقع</string>
+    <string name="retry">حاول مجددًا</string>
+</resources>

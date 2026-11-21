@@ -1,0 +1,14 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+/build
+/app/build
+keystore.properties
+vidloader-release.keystore
+keystore-base64.txt
+secrets-for-parent.txt
+tools/
+workflow-for-parent/
+*.apk
+gradle-home/
