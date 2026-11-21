@@ -61,11 +61,15 @@ jobs:
         run: gradle assembleRelease --stacktrace
 
       - name: Stage APK
-        run: cp app/build/outputs/apk/release/app-release.apk VidLoader.apk
+        run: |
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk VidLoader-arm64-v8a.apk
+          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk VidLoader-armeabi-v7a.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: VidLoader v1.0.${{ github.run_number }}
-          files: VidLoader.apk
+          files: |
+            VidLoader-arm64-v8a.apk
+            VidLoader-armeabi-v7a.apk
