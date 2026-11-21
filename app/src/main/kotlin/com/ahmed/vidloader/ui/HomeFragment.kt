@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.ahmed.vidloader.InfoActivity
 import com.ahmed.vidloader.R
+import com.ahmed.vidloader.data.QuickSettings
 import com.ahmed.vidloader.databinding.FragmentHomeBinding
 import com.ahmed.vidloader.download.DownloadKind
 import com.ahmed.vidloader.download.DownloadService
@@ -61,6 +62,28 @@ class HomeFragment : Fragment() {
             }
         }
 
+        binding.quickButton.setOnClickListener {
+            val urls = FormatUtils.extractUrls(binding.urlInput.text?.toString())
+            when {
+                urls.isEmpty() -> binding.urlLayout.error = getString(R.string.error_invalid_url)
+                urls.size == 1 -> {
+                    // One link: a playlist link becomes a quick batch, anything
+                    // else a single quick download — decided in the background.
+                    binding.urlLayout.error = null
+                    val intent = DownloadService.startQuickPlaylistIntent(
+                        requireContext(), urls[0], QuickSettings.spec(requireContext())
+                    )
+                    ContextCompat.startForegroundService(requireContext(), intent)
+                    binding.urlInput.text?.clear()
+                    Toast.makeText(requireContext(), R.string.quick_download_started, Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    binding.urlLayout.error = null
+                    enqueueQuickLinks(urls)
+                }
+            }
+        }
+
         pendingSharedUrl?.let { url ->
             binding.urlInput.setText(url)
             if (pendingAutoFetch) {
@@ -81,6 +104,17 @@ class HomeFragment : Fragment() {
         val spec = DownloadSpec(DownloadKind.VIDEO)
         for (url in urls) {
             val intent = DownloadService.startIntent(requireContext(), url, url, spec)
+            ContextCompat.startForegroundService(requireContext(), intent)
+        }
+        binding.urlInput.text?.clear()
+        Toast.makeText(requireContext(), getString(R.string.links_added, urls.size), Toast.LENGTH_LONG).show()
+    }
+
+    /** Multi-link quick download: same queueing as [enqueueLinks], but at the user's quick preset. */
+    private fun enqueueQuickLinks(urls: List<String>) {
+        val spec = QuickSettings.spec(requireContext())
+        for (url in urls) {
+            val intent = DownloadService.startQuickIntent(requireContext(), url, spec)
             ContextCompat.startForegroundService(requireContext(), intent)
         }
         binding.urlInput.text?.clear()

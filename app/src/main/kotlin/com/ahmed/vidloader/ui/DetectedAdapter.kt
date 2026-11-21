@@ -20,7 +20,8 @@ data class DetectedMedia(
 
 class DetectedAdapter(
     private val onDirectDownload: (DetectedMedia) -> Unit,
-    private val onOpenInDownloader: (DetectedMedia) -> Unit
+    private val onOpenInDownloader: (DetectedMedia) -> Unit,
+    private val onQuickDownload: (DetectedMedia) -> Unit
 ) : RecyclerView.Adapter<DetectedAdapter.Holder>() {
 
     var items: List<DetectedMedia> = emptyList()
@@ -39,9 +40,12 @@ class DetectedAdapter(
         val binding = holder.binding
         binding.detectedName.text = item.fileName
         binding.detectedUrl.text = item.url
-        // A page-video entry is a web page, not a file: direct download is meaningless.
+        // A page-video entry is a web page, not a file: direct download is meaningless,
+        // but it can quick-download in the background at the user's preset.
         binding.detectedDirect.visibility = if (item.isPageVideo) View.GONE else View.VISIBLE
+        binding.detectedQuick.visibility = if (item.isPageVideo) View.VISIBLE else View.GONE
         binding.detectedDirect.setOnClickListener { onDirectDownload(item) }
+        binding.detectedQuick.setOnClickListener { onQuickDownload(item) }
         binding.detectedOpen.setOnClickListener { onOpenInDownloader(item) }
     }
 

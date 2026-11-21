@@ -137,6 +137,17 @@
     <!-- روابط متعددة -->
     <string name="links_added">أُضيفت %1$d روابط إلى قائمة التنزيل</string>
 
+    <!-- التنزيل السريع -->
+    <string name="quick_download">تنزيل سريع</string>
+    <string name="quick_settings_title">التنزيل السريع</string>
+    <string name="quick_settings_desc">الجودة التي تُستخدم عند التنزيل السريع — من زر «تنزيل سريع» أو المشاركة أو المتصفح — من غير فتح شاشة المعلومات. يبدأ التنزيل في الخلفية ويتعرّف التطبيق على باقي المعلومات وحده.</string>
+    <string name="preset_720">720p</string>
+    <string name="preset_480">480p</string>
+    <string name="preset_360">360p</string>
+    <string name="share_opens_picker">فتح شاشة الجودة عند المشاركة</string>
+    <string name="quick_download_started">بدأ التنزيل في الخلفية</string>
+    <string name="playlist_fetching">جارٍ جلب معلومات قائمة التشغيل…</string>
+
     <!-- تحديث التطبيق -->
     <string name="check_app_updates">التحقق من تحديثات التطبيق</string>
     <string name="update_available_title">يتوفر إصدار جديد</string>

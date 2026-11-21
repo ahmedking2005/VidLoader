@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ahmed.vidloader.InfoActivity
 import com.ahmed.vidloader.R
+import com.ahmed.vidloader.data.QuickSettings
 import com.ahmed.vidloader.databinding.FragmentBrowserBinding
 import com.ahmed.vidloader.download.DownloadKind
 import com.ahmed.vidloader.download.DownloadService
@@ -43,6 +44,7 @@ class BrowserFragment : Fragment() {
     private var pageVideo: PageVideoMatch? = null
     private lateinit var detectedAdapter: DetectedAdapter
     private var pendingDirect: DetectedMedia? = null
+    private var pendingQuick: DetectedMedia? = null
 
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
@@ -55,11 +57,18 @@ class BrowserFragment : Fragment() {
     private val storageLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        val item = pendingDirect
+        val direct = pendingDirect
+        val quick = pendingQuick
         pendingDirect = null
-        if (item == null) return@registerForActivityResult
-        if (granted) doDirectDownload(item)
-        else Toast.makeText(requireContext(), R.string.error_storage_permission, Toast.LENGTH_LONG).show()
+        pendingQuick = null
+        if (!granted) {
+            if (direct != null || quick != null) {
+                Toast.makeText(requireContext(), R.string.error_storage_permission, Toast.LENGTH_LONG).show()
+            }
+            return@registerForActivityResult
+        }
+        if (direct != null) doDirectDownload(direct)
+        if (quick != null) doQuickDownload(quick)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -74,7 +83,8 @@ class BrowserFragment : Fragment() {
 
         detectedAdapter = DetectedAdapter(
             onDirectDownload = { item -> onDirectClicked(item) },
-            onOpenInDownloader = { item -> InfoActivity.start(requireContext(), item.url) }
+            onOpenInDownloader = { item -> InfoActivity.start(requireContext(), item.url) },
+            onQuickDownload = { item -> onQuickClicked(item) }
         )
         binding.detectedList.layoutManager = LinearLayoutManager(requireContext())
         binding.detectedList.adapter = detectedAdapter
@@ -280,6 +290,27 @@ class BrowserFragment : Fragment() {
         val intent = DownloadService.startIntent(requireContext(), item.url, item.fileName, spec)
         ContextCompat.startForegroundService(requireContext(), intent)
         Toast.makeText(requireContext(), R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun onQuickClicked(item: DetectedMedia) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingQuick = item
+            storageLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            return
+        }
+        doQuickDownload(item)
+    }
+
+    /** Page-video quick download: background download at the user's preset, no info screen. */
+    private fun doQuickDownload(item: DetectedMedia) {
+        val intent = DownloadService.startQuickPlaylistIntent(
+            requireContext(), item.url, QuickSettings.spec(requireContext())
+        )
+        ContextCompat.startForegroundService(requireContext(), intent)
+        if (_binding != null) binding.detectedPanel.visibility = View.GONE
+        Toast.makeText(requireContext(), R.string.quick_download_started, Toast.LENGTH_SHORT).show()
     }
 
     override fun onPause() {

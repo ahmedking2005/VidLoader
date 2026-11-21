@@ -23,11 +23,13 @@ import com.ahmed.vidloader.data.LibraryRepository
 import com.ahmed.vidloader.data.PausedJob
 import com.ahmed.vidloader.data.PausedJobItem
 import com.ahmed.vidloader.data.PausedJobsRepository
+import com.ahmed.vidloader.data.PlaylistFetcher
 import com.ahmed.vidloader.data.Staging
 import com.ahmed.vidloader.util.FormatUtils
 import com.ahmed.vidloader.util.friendlyError
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -54,12 +56,15 @@ class DownloadService : Service() {
      */
     private data class WorkItem(
         val url: String,
-        val title: String,
+        /** Mutable: a quick item starts with a placeholder and learns its real title from the download. */
+        var title: String,
         val kind: DownloadKind,
         val selector: String?,
         val subtitles: Boolean = false,
         val playlistIndex: Int? = null,
-        val slot: Int = 0
+        val slot: Int = 0,
+        /** Quick-download item: no info was fetched up front, so the title is learned from the .info.json the download itself writes. */
+        val quick: Boolean = false
     )
 
     /** A group of items started together (a single video = a job of one item; a playlist selection = one batch job). */
@@ -74,7 +79,15 @@ class DownloadService : Service() {
          * resumed job, whose [items] are the not-yet-finished tail). Keeps the
          * displayed "k من N" position honest across pause/resume cycles.
          */
-        val positionOffset: Int = 0
+        val positionOffset: Int = 0,
+        /**
+         * Quick playlist only: the entries are not known yet. When both are set,
+         * [items] is empty and the drain loop expands [expandUrl] with
+         * [expandSpec] in the background before the first item runs; if the URL
+         * turns out not to be a playlist, it falls back to one quick item.
+         */
+        val expandUrl: String? = null,
+        val expandSpec: DownloadSpec? = null
     )
 
     private enum class ItemOutcome { SUCCESS, FAILED, CANCELLED, PAUSED }
@@ -194,7 +207,8 @@ class DownloadService : Service() {
                 selector = item.selector,
                 subtitles = item.subtitles,
                 playlistIndex = item.playlistIndex,
-                slot = item.slot
+                slot = item.slot,
+                quick = item.quick
             )
         }
     )
@@ -241,6 +255,20 @@ class DownloadService : Service() {
         val subtitles = intent.getBooleanExtra(EXTRA_SUBTITLES, false)
         val jobId = intent.getStringExtra(EXTRA_JOB_ID) ?: UUID.randomUUID().toString()
 
+        // Quick playlist: entries unknown — the drain loop expands the URL in
+        // the background (or falls back to a single quick download).
+        val quickPlaylistUrl = intent.getStringExtra(EXTRA_QUICK_PLAYLIST_URL)
+        if (quickPlaylistUrl != null) {
+            return WorkJob(
+                id = jobId,
+                label = placeholderTitle(quickPlaylistUrl),
+                isBatch = true,
+                items = emptyList(),
+                expandUrl = quickPlaylistUrl,
+                expandSpec = DownloadSpec(kind, selector)
+            )
+        }
+
         val indices = intent.getIntArrayExtra(EXTRA_INDICES)
         val playlistUrl = intent.getStringExtra(EXTRA_PLAYLIST_URL)
         if (indices != null && playlistUrl != null) {
@@ -267,22 +295,35 @@ class DownloadService : Service() {
         }
 
         val url = intent.getStringExtra(EXTRA_URL) ?: return null
-        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
+        val quick = intent.getBooleanExtra(EXTRA_QUICK, false)
+        val rawTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty()
+        val title = if (quick && rawTitle.isBlank()) placeholderTitle(url) else rawTitle
         return WorkJob(
             id = jobId,
             label = title,
             isBatch = false,
             items = listOf(
-                WorkItem(url = url, title = title, kind = kind, selector = selector, subtitles = subtitles, slot = 0)
+                WorkItem(
+                    url = url, title = title, kind = kind, selector = selector,
+                    subtitles = subtitles, slot = 0, quick = quick
+                )
             )
         )
     }
+
+    /** Display placeholder for a download whose real title is not known yet: the URL's host. */
+    private fun placeholderTitle(url: String): String =
+        runCatching { java.net.URI(url).host }
+            .getOrNull()
+            ?.removePrefix("www.")
+            ?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.shared_video)
 
     /** Sequentially drains the job queue. A failed item is skipped and counted; cancel stops everything. */
     private fun drainQueue() {
         try {
             while (true) {
-                val job = synchronized(queueLock) {
+                var job = synchronized(queueLock) {
                     val next = if (pendingJobs.isEmpty()) null else pendingJobs.removeFirst()
                     if (next == null) draining = false
                     next
@@ -306,6 +347,14 @@ class DownloadService : Service() {
                     pausedRepo.remove(job.id)
                     cancelPausedNotification(job.id)
                     DownloadCenter.pausedJobs.value = pausedRepo.load()
+                }
+
+                // Quick playlist: the entries are not known yet — expand the
+                // URL in the background now. A pause/cancel pressed meanwhile
+                // is honoured by the item loop's checks below, and a pause
+                // persists the expanded items (or the single fallback item).
+                if (job.expandUrl != null) {
+                    job = expandQuickPlaylist(job)
                 }
 
                 val total = job.items.size
@@ -382,7 +431,7 @@ class DownloadService : Service() {
                             progress = 100f,
                             failedCount = failed
                         )
-                        notifyJobFinished(job, succeeded, failed)
+                        notifyJobFinished(job.withCurrentLabel(), succeeded, failed)
                     }
                     else -> {
                         DownloadCenter.state.value = DownloadCenter.state.value.copy(
@@ -390,7 +439,7 @@ class DownloadService : Service() {
                             error = lastError,
                             failedCount = failed
                         )
-                        notifyJobFailed(job)
+                        notifyJobFailed(job.withCurrentLabel())
                     }
                 }
             }
@@ -401,6 +450,72 @@ class DownloadService : Service() {
             stopSelf()
         }
     }
+
+    /**
+     * Expands a quick playlist job in the background (runs on the drain
+     * thread): fetches the playlist's entries and turns them into ordinary
+     * batch items at the job's preset. If the URL is not a playlist — or the
+     * fetch fails — the job falls back to a single quick download of the URL
+     * itself. Pause/cancel flags are deliberately NOT consumed here: the item
+     * loop's checks right after this call act on them.
+     */
+    private fun expandQuickPlaylist(job: WorkJob): WorkJob {
+        val url = job.expandUrl ?: return job
+        val spec = job.expandSpec ?: DownloadSpec(DownloadKind.VIDEO)
+        DownloadCenter.state.value = DownloadCenter.State(
+            status = DownloadCenter.Status.RUNNING,
+            title = job.label
+        )
+        notifyFetchingPlaylist(job.label)
+
+        val app = VidLoaderApp.instance
+        app.initEngineBlocking()
+        val info = if (app.engineReady) {
+            try {
+                PlaylistFetcher.fetch(url)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+
+        return if (info != null) {
+            job.copy(
+                label = info.title.ifBlank { job.label },
+                isBatch = true,
+                items = info.entries.mapIndexed { i, entry ->
+                    WorkItem(
+                        url = url,
+                        title = entry.title,
+                        kind = spec.kind,
+                        selector = spec.selector,
+                        playlistIndex = entry.index,
+                        slot = i
+                    )
+                },
+                expandUrl = null,
+                expandSpec = null
+            )
+        } else {
+            job.copy(
+                isBatch = false,
+                items = listOf(
+                    WorkItem(
+                        url = url, title = job.label, kind = spec.kind,
+                        selector = spec.selector, slot = 0, quick = true
+                    )
+                ),
+                expandUrl = null,
+                expandSpec = null
+            )
+        }
+    }
+
+    /** Single jobs notify under their item's (possibly just-learned) title; batches under the playlist label. */
+    private fun WorkJob.withCurrentLabel(): WorkJob =
+        if (isBatch) this
+        else copy(label = items.firstOrNull()?.title?.takeIf { it.isNotBlank() } ?: label)
 
     /** Persists the not-yet-finished tail of [job] (from item index [fromIndex]) as a paused job and notifies. */
     private fun persistPaused(job: WorkJob, fromIndex: Int, progressPercent: Int, failedCount: Int) {
@@ -418,7 +533,8 @@ class DownloadService : Service() {
                     selector = item.selector,
                     subtitles = item.subtitles,
                     playlistIndex = item.playlistIndex,
-                    slot = item.slot
+                    slot = item.slot,
+                    quick = item.quick
                 )
             },
             progressPercent = progressPercent.coerceIn(0, 100),
@@ -461,6 +577,11 @@ class DownloadService : Service() {
             request.addOption("--no-mtime")
             request.addOption("--retries", "3")
             request.addOption("-o", File(staging, "%(id)s.%(ext)s").absolutePath)
+            if (item.quick) {
+                // No info was fetched up front: let the download itself write
+                // the metadata we learn the real title from (see learnTitle).
+                request.addOption("--write-info-json")
+            }
             when (item.kind) {
                 DownloadKind.VIDEO -> {
                     request.addOption("-f", item.selector ?: "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best")
@@ -506,6 +627,11 @@ class DownloadService : Service() {
                 }
             }
 
+            // A quick download learns its real title from the info json the
+            // download just wrote — before the pause check, so a job paused
+            // right at the end still persists (and displays) the real title.
+            if (item.quick) learnTitle(staging, item)
+
             // Pause also covers the merge/post-processing tail: if it was pressed while
             // execute() was finishing, keep everything and let the resume re-check the parts.
             if (DownloadCenter.pauseRequested) {
@@ -523,6 +649,7 @@ class DownloadService : Service() {
             val result = staging.listFiles()
                 ?.filter {
                     it.isFile && !it.name.endsWith(".part") && !it.name.endsWith(".ytdl") && !it.name.endsWith(".tmp") &&
+                        !it.name.endsWith(".info.json") &&
                         !it.name.endsWith(".webp") && !it.name.endsWith(".jpg") && !it.name.endsWith(".png") &&
                         !it.name.endsWith(".srt") && !it.name.endsWith(".vtt")
                 }
@@ -567,6 +694,9 @@ class DownloadService : Service() {
             return outcome
         } catch (e: YoutubeDL.CanceledException) {
             outcome = if (DownloadCenter.pauseRequested) ItemOutcome.PAUSED else ItemOutcome.CANCELLED
+            // The info json is written during extraction, so even a killed
+            // download usually already knows its real title.
+            if (outcome == ItemOutcome.PAUSED && item.quick) learnTitle(staging, item)
             return outcome
         } catch (e: Exception) {
             outcome = when {
@@ -577,6 +707,7 @@ class DownloadService : Service() {
                     ItemOutcome.FAILED
                 }
             }
+            if (outcome == ItemOutcome.PAUSED && item.quick) learnTitle(staging, item)
             return outcome
         } finally {
             // Pause is the only outcome that keeps the partial files for a later resume.
@@ -585,6 +716,26 @@ class DownloadService : Service() {
             if (outcome != ItemOutcome.PAUSED) {
                 staging.deleteRecursively()
             }
+        }
+    }
+
+    /**
+     * Learns a quick item's real title from the `<id>.info.json` its download
+     * wrote into [staging] and adopts it everywhere the item is displayed.
+     * Best effort: any failure keeps the placeholder title.
+     */
+    private fun learnTitle(staging: File, item: WorkItem) {
+        try {
+            val infoFile = staging.listFiles()
+                ?.firstOrNull { it.isFile && it.name.endsWith(".info.json") }
+                ?: return
+            val title = JSONObject(infoFile.readText()).optString("title")
+            if (title.isNotBlank() && title != item.title) {
+                item.title = title
+                DownloadCenter.state.value = DownloadCenter.state.value.copy(title = title)
+            }
+        } catch (e: Exception) {
+            // Placeholder stays — a title must never fail a download.
         }
     }
 
@@ -745,6 +896,20 @@ class DownloadService : Service() {
         manager.notify(NOTIF_PROGRESS, notification)
     }
 
+    /** Shown while a quick playlist's entries are being fetched in the background. */
+    private fun notifyFetchingPlaylist(label: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val notification = baseBuilder()
+            .setContentTitle(getString(R.string.notif_downloading, label))
+            .setContentText(getString(R.string.playlist_fetching))
+            .setOngoing(true)
+            .setProgress(0, 0, true)
+            .addAction(0, getString(R.string.pause), pausePendingIntent())
+            .addAction(0, getString(R.string.cancel), cancelPendingIntent())
+            .build()
+        manager.notify(NOTIF_PROGRESS, notification)
+    }
+
     private fun resultPendingIntent(): PendingIntent {
         val openIntent = Intent(this, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_OPEN_LIBRARY, true)
@@ -827,6 +992,8 @@ class DownloadService : Service() {
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_SELECTOR = "selector"
         private const val EXTRA_SUBTITLES = "subtitles"
+        private const val EXTRA_QUICK = "quick"
+        private const val EXTRA_QUICK_PLAYLIST_URL = "quick_playlist_url"
         private const val EXTRA_JOB_ID = "job_id"
         private const val EXTRA_PLAYLIST_URL = "playlist_url"
         private const val EXTRA_PLAYLIST_TITLE = "playlist_title"
@@ -848,6 +1015,35 @@ class DownloadService : Service() {
                 putExtra(EXTRA_KIND, spec.kind.name)
                 putExtra(EXTRA_SELECTOR, spec.selector)
                 putExtra(EXTRA_SUBTITLES, spec.subtitles)
+            }
+        }
+
+        /**
+         * Quick download of one URL at the user's preset: no info fetch, no
+         * playlist expansion (--no-playlist applies, so a playlist link counts
+         * as one video). The title is learned from the download itself.
+         */
+        fun startQuickIntent(context: Context, url: String, spec: DownloadSpec): Intent {
+            return Intent(context, DownloadService::class.java).apply {
+                putExtra(EXTRA_URL, url)
+                putExtra(EXTRA_TITLE, "")
+                putExtra(EXTRA_KIND, spec.kind.name)
+                putExtra(EXTRA_SELECTOR, spec.selector)
+                putExtra(EXTRA_SUBTITLES, false)
+                putExtra(EXTRA_QUICK, true)
+            }
+        }
+
+        /**
+         * Quick download of a URL that MIGHT be a playlist: the service expands
+         * it in the background and downloads every entry at the preset; a
+         * non-playlist URL falls back to a single quick download.
+         */
+        fun startQuickPlaylistIntent(context: Context, url: String, spec: DownloadSpec): Intent {
+            return Intent(context, DownloadService::class.java).apply {
+                putExtra(EXTRA_QUICK_PLAYLIST_URL, url)
+                putExtra(EXTRA_KIND, spec.kind.name)
+                putExtra(EXTRA_SELECTOR, spec.selector)
             }
         }
 

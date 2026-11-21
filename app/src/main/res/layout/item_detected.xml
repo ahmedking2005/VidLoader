@@ -38,6 +38,14 @@
             android:text="@string/direct_download" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/detected_quick"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/quick_download"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/detected_open"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"

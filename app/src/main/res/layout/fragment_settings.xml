@@ -22,6 +22,82 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:text="@string/quick_settings_title"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/quick_settings_desc"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <RadioGroup
+                    android:id="@+id/quick_preset_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <RadioButton
+                        android:id="@+id/preset_best"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/best_quality" />
+
+                    <RadioButton
+                        android:id="@+id/preset_720"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/preset_720" />
+
+                    <RadioButton
+                        android:id="@+id/preset_480"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/preset_480" />
+
+                    <RadioButton
+                        android:id="@+id/preset_360"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/preset_360" />
+
+                    <RadioButton
+                        android:id="@+id/preset_mp3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/audio_mp3" />
+
+                    <RadioButton
+                        android:id="@+id/preset_m4a"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/audio_m4a" />
+                </RadioGroup>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/share_picker_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/share_opens_picker" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="@string/settings_engine_title"
                     android:textAppearance="?attr/textAppearanceTitleMedium" />
 

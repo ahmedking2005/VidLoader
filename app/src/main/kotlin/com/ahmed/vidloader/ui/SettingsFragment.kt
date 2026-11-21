@@ -12,6 +12,8 @@ import androidx.lifecycle.lifecycleScope
 import com.ahmed.vidloader.BuildConfig
 import com.ahmed.vidloader.R
 import com.ahmed.vidloader.VidLoaderApp
+import com.ahmed.vidloader.data.QuickPreset
+import com.ahmed.vidloader.data.QuickSettings
 import com.ahmed.vidloader.data.UpdateChecker
 import com.ahmed.vidloader.data.UpdatePrompt
 import com.ahmed.vidloader.databinding.FragmentSettingsBinding
@@ -38,7 +40,39 @@ class SettingsFragment : Fragment() {
         binding.aboutText.text = getString(R.string.settings_about_desc, BuildConfig.VERSION_NAME)
         binding.updateButton.setOnClickListener { updateEngine() }
         binding.appUpdateButton.setOnClickListener { checkAppUpdate() }
+        setupQuickSettings()
         refreshEngineVersion()
+    }
+
+    /** «التنزيل السريع» section: the one-time quality preset + the share-behaviour toggle. */
+    private fun setupQuickSettings() {
+        // Set the current values first, then attach the listeners, so opening
+        // the screen doesn't write the same values straight back.
+        binding.quickPresetGroup.check(
+            when (QuickSettings.preset(requireContext())) {
+                QuickPreset.BEST -> R.id.preset_best
+                QuickPreset.P720 -> R.id.preset_720
+                QuickPreset.P480 -> R.id.preset_480
+                QuickPreset.P360 -> R.id.preset_360
+                QuickPreset.MP3 -> R.id.preset_mp3
+                QuickPreset.M4A -> R.id.preset_m4a
+            }
+        )
+        binding.quickPresetGroup.setOnCheckedChangeListener { _, checkedId ->
+            val preset = when (checkedId) {
+                R.id.preset_720 -> QuickPreset.P720
+                R.id.preset_480 -> QuickPreset.P480
+                R.id.preset_360 -> QuickPreset.P360
+                R.id.preset_mp3 -> QuickPreset.MP3
+                R.id.preset_m4a -> QuickPreset.M4A
+                else -> QuickPreset.BEST
+            }
+            QuickSettings.setPreset(requireContext(), preset)
+        }
+        binding.sharePickerSwitch.isChecked = QuickSettings.shareOpensPicker(requireContext())
+        binding.sharePickerSwitch.setOnCheckedChangeListener { _, checked ->
+            QuickSettings.setShareOpensPicker(requireContext(), checked)
+        }
     }
 
     /** Manual app-update check: ignores the 24h throttle and the «لاحقًا» dismissal. */

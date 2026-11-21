@@ -16,7 +16,12 @@ data class PausedJobItem(
     /** 1-based playlist entry index, or null for a standalone download. */
     val playlistIndex: Int?,
     /** Stable position of this item inside its job; keys the item's staging directory. */
-    val slot: Int
+    val slot: Int,
+    /**
+     * Quick-download item: its stored title is only a placeholder and the real
+     * title is learned from the download itself (the .info.json in staging).
+     */
+    val quick: Boolean = false
 )
 
 /**
@@ -70,7 +75,8 @@ class PausedJobsRepository(context: Context) {
                         selector = if (io.isNull("selector")) null else io.optString("selector"),
                         subtitles = io.optBoolean("subtitles"),
                         playlistIndex = if (io.isNull("playlistIndex")) null else io.optInt("playlistIndex"),
-                        slot = io.optInt("slot", j)
+                        slot = io.optInt("slot", j),
+                        quick = io.optBoolean("quick")
                     )
                 }
                 if (items.isEmpty()) continue
@@ -122,6 +128,7 @@ class PausedJobsRepository(context: Context) {
                         .put("subtitles", item.subtitles)
                         .put("playlistIndex", item.playlistIndex ?: JSONObject.NULL)
                         .put("slot", item.slot)
+                        .put("quick", item.quick)
                 )
             }
             arr.put(
