@@ -19,7 +19,7 @@
         android:layout_weight="1">
 
         <LinearLayout
-            android:id="@+id/content_container"
+            android:id="@+id/info_scroll"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
@@ -61,7 +61,7 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/progress_card"
+                android:id="@+id/download_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
@@ -76,28 +76,28 @@
                     android:padding="14dp">
 
                     <TextView
-                        android:id="@+id/progress_title"
+                        android:id="@+id/download_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/downloading"
                         android:textAppearance="?attr/textAppearanceTitleSmall" />
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
-                        android:id="@+id/progress_bar"
+                        android:id="@+id/download_progress"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:indeterminate="true" />
 
                     <TextView
-                        android:id="@+id/progress_detail"
+                        android:id="@+id/download_detail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:textAppearance="?attr/textAppearanceBodySmall" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/cancel_button"
+                        android:id="@+id/cancel_download_button"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -116,7 +116,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/loading_container"
+            android:id="@+id/loading"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
@@ -135,7 +135,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/error_container"
+            android:id="@+id/error_box"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
@@ -151,7 +151,7 @@
                 android:textAppearance="?attr/textAppearanceBodyLarge" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/retry_button"
+                android:id="@+id/error_retry"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
