@@ -14,6 +14,12 @@ object FormatUtils {
         return String.format(Locale.US, "%.1f %s", value, units[i])
     }
 
+    /** Size label for format rows; prefixes ≈ when the size is an estimate. */
+    fun sizeLabel(bytes: Long, approx: Boolean = false): String {
+        val label = humanSize(bytes)
+        return if (approx && bytes > 0) "≈ $label" else label
+    }
+
     /** seconds -> "12:34" or "1:02:03" */
     fun duration(totalSeconds: Double): String {
         val s = totalSeconds.toLong().coerceAtLeast(0)
