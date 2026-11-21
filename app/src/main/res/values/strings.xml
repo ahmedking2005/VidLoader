@@ -79,7 +79,7 @@
     <string name="retry">حاول مجددًا</string>
 
     <!-- إصلاحات الربط -->
-    <string name="best_quality">أفضل جودة</string>
+    <string name="best_quality">أفضل جودة (حتى 1080p)</string>
     <string name="delete">حذف</string>
     <string name="delete_title">حذف الملف</string>
     <string name="delete_message">سيتم حذف "%1$s" نهائيًا.</string>
@@ -89,4 +89,32 @@
     <string name="engine_version_unknown">غير معروف</string>
     <string name="error_no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
     <string name="error_storage_permission">يحتاج التطبيق إلى إذن التخزين لحفظ التنزيلات على هذا الجهاز</string>
+
+    <!-- قوائم التشغيل -->
+    <string name="playlist_meta_format">قائمة تشغيل • %1$d فيديو</string>
+    <string name="playlist_quality_label">الجودة لكل القائمة</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="download_selected">تنزيل المحدد (%1$d)</string>
+    <string name="playlist_progress">%1$d من %2$d</string>
+    <string name="playlist_failed_count">فشل %1$d</string>
+    <string name="playlist_item_fallback">العنصر %1$d</string>
+    <string name="download_queued">أُضيف إلى قائمة انتظار التنزيلات</string>
+    <string name="notif_batch_done">اكتمل تنزيل القائمة: %1$s</string>
+    <string name="notif_batch_partial">نجح %1$d • فشل %2$d</string>
+
+    <!-- المتصفح الداخلي -->
+    <string name="nav_browser">المتصفح</string>
+    <string name="browser_hint">ابحث أو الصق رابطًا…</string>
+    <string name="browser_back">رجوع</string>
+    <string name="browser_forward">تقديم</string>
+    <string name="browser_reload">إعادة تحميل</string>
+    <string name="browser_go">اذهب</string>
+    <string name="browser_download">تنزيل الصفحة</string>
+    <string name="detected_videos">فيديوهات مكتشفة (%1$d)</string>
+    <string name="detected_title">فيديوهات مكتشفة في هذه الصفحة</string>
+    <string name="detected_none">لا توجد روابط فيديو مكتشفة في هذه الصفحة بعد</string>
+    <string name="direct_download">تنزيل مباشر</string>
+    <string name="open_in_downloader">فتح في المنزّل</string>
+    <string name="close">إغلاق</string>
+    <string name="shared_video">فيديو مشترك</string>
 </resources>

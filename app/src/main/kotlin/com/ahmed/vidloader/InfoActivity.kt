@@ -16,6 +16,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
+import com.ahmed.vidloader.data.PlaylistEntry
+import com.ahmed.vidloader.data.PlaylistFetcher
+import com.ahmed.vidloader.data.PlaylistInfo
 import com.ahmed.vidloader.databinding.ActivityInfoBinding
 import com.ahmed.vidloader.download.DownloadCenter
 import com.ahmed.vidloader.download.DownloadKind
@@ -23,6 +26,7 @@ import com.ahmed.vidloader.download.DownloadService
 import com.ahmed.vidloader.download.DownloadSpec
 import com.ahmed.vidloader.ui.FormatRow
 import com.ahmed.vidloader.ui.FormatsAdapter
+import com.ahmed.vidloader.ui.PlaylistAdapter
 import com.ahmed.vidloader.util.FormatUtils
 import com.ahmed.vidloader.util.friendlyError
 import com.yausername.youtubedl_android.YoutubeDL
@@ -39,16 +43,20 @@ class InfoActivity : AppCompatActivity() {
 
     private var videoUrl: String = ""
     private var videoTitle: String = ""
-    private var pendingSpec: DownloadSpec? = null
+    private var pendingAction: (() -> Unit)? = null
     private var lastStatus: DownloadCenter.Status = DownloadCenter.Status.IDLE
+
+    private var playlistInfo: PlaylistInfo? = null
+    private var playlistAdapter: PlaylistAdapter? = null
+    private var syncingSelectAll: Boolean = false
 
     private val storageLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        val spec = pendingSpec
-        pendingSpec = null
-        if (spec == null) return@registerForActivityResult
-        if (granted) doStartDownload(spec)
+        val action = pendingAction
+        pendingAction = null
+        if (action == null) return@registerForActivityResult
+        if (granted) action()
         else Toast.makeText(this, R.string.error_storage_permission, Toast.LENGTH_LONG).show()
     }
 
@@ -89,15 +97,26 @@ class InfoActivity : AppCompatActivity() {
         binding.loading.visibility = View.VISIBLE
         binding.errorBox.visibility = View.GONE
         binding.infoScroll.visibility = View.GONE
+        binding.playlistBox.visibility = View.GONE
         lifecycleScope.launch {
             try {
-                val info = withContext(Dispatchers.IO) {
+                // Probe first: a real playlist URL opens playlist mode; a single
+                // video (even one carrying a list= parameter) stays on the
+                // normal format-picker flow.
+                val playlist = withContext(Dispatchers.IO) {
                     val app = VidLoaderApp.instance
                     app.initEngineBlocking()
                     if (!app.engineReady) throw IllegalStateException("engine: ${app.engineError}")
-                    YoutubeDL.getInstance().getInfo(videoUrl)
+                    PlaylistFetcher.fetch(videoUrl)
                 }
-                showInfo(info)
+                if (playlist != null) {
+                    showPlaylist(playlist)
+                } else {
+                    val info = withContext(Dispatchers.IO) {
+                        YoutubeDL.getInstance().getInfo(videoUrl)
+                    }
+                    showInfo(info)
+                }
             } catch (e: Exception) {
                 binding.loading.visibility = View.GONE
                 binding.errorBox.visibility = View.VISIBLE
@@ -145,16 +164,19 @@ class InfoActivity : AppCompatActivity() {
                 !(it.formatId?.startsWith("sb") == true)
         }
 
+        // Hard cap: the app never lists or downloads above 1080p.
+        val heights = videoFormats.map { it.height }.distinct()
+            .filter { it <= MAX_HEIGHT }.sortedDescending()
+
         rows += FormatRow.Header(getString(R.string.info_video_qualities))
-        if (videoFormats.isEmpty()) {
+        if (heights.isEmpty()) {
             rows += FormatRow.Option(
                 label = getString(R.string.best_quality),
                 sub = "",
                 iconRes = R.drawable.ic_play,
-                spec = DownloadSpec(DownloadKind.VIDEO, selector = "best", label = getString(R.string.best_quality))
+                spec = DownloadSpec(DownloadKind.VIDEO, selector = BEST_SELECTOR, label = getString(R.string.best_quality))
             )
         } else {
-            val heights = videoFormats.map { it.height }.distinct().sortedDescending()
             fun chosenFor(height: Int): VideoFormat =
                 videoFormats.filter { it.height == height }
                     .maxWithOrNull(compareBy<VideoFormat>({ it.tbr }, { it.fps }, { sizeOf(it) }))!!
@@ -175,7 +197,7 @@ class InfoActivity : AppCompatActivity() {
                 label = "${getString(R.string.best_quality)} (${heights.first()}p)",
                 sub = videoSub(best),
                 iconRes = R.drawable.ic_play,
-                spec = DownloadSpec(DownloadKind.VIDEO, selector = "bestvideo+bestaudio/best", label = "${getString(R.string.best_quality)} (${heights.first()}p)")
+                spec = DownloadSpec(DownloadKind.VIDEO, selector = BEST_SELECTOR, label = "${getString(R.string.best_quality)} (${heights.first()}p)")
             )
             for (h in heights) {
                 val f = chosenFor(h)
@@ -208,15 +230,90 @@ class InfoActivity : AppCompatActivity() {
         return rows
     }
 
-    private fun onOptionClicked(spec: DownloadSpec) {
-        if (DownloadCenter.isBusy()) {
-            Toast.makeText(this, R.string.download_already_running, Toast.LENGTH_SHORT).show()
-            return
+    // region playlist mode
+
+    private fun showPlaylist(playlist: PlaylistInfo) {
+        playlistInfo = playlist
+        binding.loading.visibility = View.GONE
+        binding.infoScroll.visibility = View.GONE
+        binding.playlistBox.visibility = View.VISIBLE
+
+        videoTitle = playlist.title
+        binding.playlistTitle.text = playlist.title
+        binding.playlistMeta.text = getString(R.string.playlist_meta_format, playlist.entries.size)
+
+        val adapter = PlaylistAdapter(playlist.entries) { refreshPlaylistSelectionUi() }
+        playlistAdapter = adapter
+        binding.playlistList.layoutManager = LinearLayoutManager(this)
+        binding.playlistList.adapter = adapter
+
+        binding.qualityBest.isChecked = true
+        binding.selectAll.setOnCheckedChangeListener { _, checked ->
+            if (syncingSelectAll) return@setOnCheckedChangeListener
+            playlist.entries.forEach { it.selected = checked }
+            adapter.notifyDataSetChanged()
+            refreshPlaylistSelectionUi()
         }
+        syncingSelectAll = true
+        binding.selectAll.isChecked = true
+        syncingSelectAll = false
+
+        binding.downloadSelected.setOnClickListener { onDownloadSelectedClicked() }
+        refreshPlaylistSelectionUi()
+    }
+
+    private fun refreshPlaylistSelectionUi() {
+        val playlist = playlistInfo ?: return
+        val count = playlist.entries.count { it.selected }
+        binding.downloadSelected.text = getString(R.string.download_selected, count)
+        binding.downloadSelected.isEnabled = count > 0
+        syncingSelectAll = true
+        binding.selectAll.isChecked = count == playlist.entries.size
+        syncingSelectAll = false
+    }
+
+    private fun onDownloadSelectedClicked() {
+        val playlist = playlistInfo ?: return
+        val selected = playlist.entries.filter { it.selected }
+        if (selected.isEmpty()) return
+        val spec = when (binding.playlistQuality.checkedRadioButtonId) {
+            R.id.quality_720 -> DownloadSpec(
+                DownloadKind.VIDEO,
+                selector = "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+                label = "720p"
+            )
+            R.id.quality_480 -> DownloadSpec(
+                DownloadKind.VIDEO,
+                selector = "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
+                label = "480p"
+            )
+            R.id.quality_mp3 -> DownloadSpec(DownloadKind.AUDIO_MP3, label = getString(R.string.audio_mp3))
+            else -> DownloadSpec(DownloadKind.VIDEO, selector = BEST_SELECTOR, label = getString(R.string.best_quality))
+        }
+        withStoragePermission { doStartPlaylist(spec, selected) }
+    }
+
+    private fun doStartPlaylist(spec: DownloadSpec, selected: List<PlaylistEntry>) {
+        val intent = DownloadService.startBatchIntent(
+            this,
+            videoUrl,
+            playlistInfo?.title ?: videoTitle,
+            selected.map { it.index }.toIntArray(),
+            selected.map { it.title }.toTypedArray(),
+            spec
+        )
+        ContextCompat.startForegroundService(this, intent)
+        Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    // endregion
+
+    /** Runs [action] now, or after the legacy storage permission is granted (API ≤ 28). */
+    private fun withStoragePermission(action: () -> Unit) {
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
         ) {
-            pendingSpec = spec
+            pendingAction = action
             storageLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             return
         }
@@ -225,7 +322,12 @@ class InfoActivity : AppCompatActivity() {
         ) {
             notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        doStartDownload(spec)
+        action()
+    }
+
+    private fun onOptionClicked(spec: DownloadSpec) {
+        // No busy rejection: the service queues new jobs behind the running one.
+        withStoragePermission { doStartDownload(spec) }
     }
 
     private fun doStartDownload(spec: DownloadSpec) {
@@ -256,6 +358,13 @@ class InfoActivity : AppCompatActivity() {
                     binding.downloadProgress.isIndeterminate = state.progress < 0
                     binding.downloadProgress.progress = state.progress.toInt().coerceIn(0, 100)
                     val detail = StringBuilder()
+                    if (state.queueTotal > 1) {
+                        detail.append(getString(R.string.playlist_progress, state.queuePosition, state.queueTotal))
+                        if (state.failedCount > 0) {
+                            detail.append(" • ").append(getString(R.string.playlist_failed_count, state.failedCount))
+                        }
+                        detail.append(" • ")
+                    }
                     if (state.progress >= 0) detail.append(getString(R.string.download_progress, state.progress.toInt()))
                     if (state.etaSeconds > 0) detail.append(" • ").append(getString(R.string.eta_format, FormatUtils.eta(state.etaSeconds)))
                     if (state.speed.isNotBlank()) detail.append(" • ").append(state.speed)
@@ -287,6 +396,10 @@ class InfoActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_URL = "url"
+
+        /** Hard cap: nothing above 1080p is ever listed or downloaded. */
+        private const val MAX_HEIGHT = 1080
+        private const val BEST_SELECTOR = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
 
         fun start(context: Context, url: String) {
             context.startActivity(Intent(context, InfoActivity::class.java).putExtra(EXTRA_URL, url))

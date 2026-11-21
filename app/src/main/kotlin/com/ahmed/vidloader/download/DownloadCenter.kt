@@ -15,7 +15,13 @@ object DownloadCenter {
         val etaSeconds: Long = -1,
         val speed: String = "",
         val error: String? = null,
-        val itemId: String? = null
+        val itemId: String? = null,
+        /** 1-based position of the current item inside its job (0 when not applicable). */
+        val queuePosition: Int = 0,
+        /** Total items in the current job; values > 1 mean a batch (playlist / queue). */
+        val queueTotal: Int = 0,
+        /** Items of the current job that failed so far (skipped, not fatal). */
+        val failedCount: Int = 0
     )
 
     val state = MutableStateFlow(State())

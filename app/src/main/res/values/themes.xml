@@ -7,4 +7,11 @@
         <item name="colorSecondary">@color/accent</item>
         <item name="android:statusBarColor">@color/primary_dark</item>
     </style>
+
+    <!-- Invisible trampoline used by the share-sheet entry (ShareActivity). -->
+    <style name="Theme.VidLoader.Trampoline" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
 </resources>

@@ -13,6 +13,7 @@ import android.os.Environment
 import android.os.IBinder
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.ahmed.vidloader.MainActivity
 import com.ahmed.vidloader.R
@@ -28,7 +29,7 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.util.concurrent.Executors
 
-enum class DownloadKind { VIDEO, AUDIO_M4A, AUDIO_MP3 }
+enum class DownloadKind { VIDEO, AUDIO_M4A, AUDIO_MP3, DIRECT }
 
 data class DownloadSpec(
     val kind: DownloadKind,
@@ -38,19 +39,41 @@ data class DownloadSpec(
 
 class DownloadService : Service() {
 
+    /** One downloadable unit. [playlistIndex] != null means: download entry #[playlistIndex] (1-based) of the playlist at [url]. */
+    private data class WorkItem(
+        val url: String,
+        val title: String,
+        val kind: DownloadKind,
+        val selector: String?,
+        val playlistIndex: Int? = null
+    )
+
+    /** A group of items started together (a single video = a job of one item; a playlist selection = one batch job). */
+    private data class WorkJob(
+        val label: String,
+        val isBatch: Boolean,
+        val items: List<WorkItem>
+    )
+
+    private enum class ItemOutcome { SUCCESS, FAILED, CANCELLED }
+
     private val executor = Executors.newSingleThreadExecutor()
+
+    private val pendingJobs = ArrayDeque<WorkJob>()
+    private val queueLock = Any()
+
+    @Volatile
+    private var draining: Boolean = false
 
     @Volatile
     private var currentProcessId: String? = null
-
-    @Volatile
-    private var running: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_CANCEL) {
             DownloadCenter.cancelRequested = true
+            synchronized(queueLock) { pendingJobs.clear() }
             val pid = currentProcessId
             if (pid != null) {
                 Thread { YoutubeDL.getInstance().destroyProcessById(pid) }.start()
@@ -58,41 +81,42 @@ class DownloadService : Service() {
             return START_NOT_STICKY
         }
 
-        val url = intent?.getStringExtra(EXTRA_URL)
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: ""
-        val kindName = intent?.getStringExtra(EXTRA_KIND)
-        val selector = intent?.getStringExtra(EXTRA_SELECTOR)
-        if (url == null || kindName == null) {
-            if (!running) stopSelf()
-            return START_NOT_STICKY
-        }
-        val kind = runCatching { DownloadKind.valueOf(kindName) }.getOrNull() ?: DownloadKind.VIDEO
-
-        if (DownloadCenter.isBusy()) {
-            android.widget.Toast.makeText(this, R.string.download_already_running, android.widget.Toast.LENGTH_SHORT).show()
+        val job = intent?.let { parseJob(it) }
+        if (job == null) {
+            if (!draining) stopSelf()
             return START_NOT_STICKY
         }
 
-        val processId = "dl_" + System.currentTimeMillis()
-        currentProcessId = processId
-        running = true
+        val startNow = synchronized(queueLock) {
+            pendingJobs.addLast(job)
+            if (draining) {
+                false
+            } else {
+                draining = true
+                true
+            }
+        }
+
+        if (!startNow) {
+            Toast.makeText(this, R.string.download_queued, Toast.LENGTH_SHORT).show()
+            return START_NOT_STICKY
+        }
+
         DownloadCenter.reset()
         DownloadCenter.state.value = DownloadCenter.State(
             status = DownloadCenter.Status.RUNNING,
-            processId = processId,
-            title = title
+            title = job.items.firstOrNull()?.title ?: job.label,
+            queuePosition = if (job.items.isEmpty()) 0 else 1,
+            queueTotal = job.items.size
         )
-
-        val notification = buildProgressNotification(title, -1f, -1, "")
+        val notification = buildProgressNotification(DownloadCenter.state.value.title, -1f, -1, "")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIF_PROGRESS, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIF_PROGRESS, notification)
         }
 
-        executor.execute {
-            runDownload(processId, url, title, kind, selector)
-        }
+        executor.execute { drainQueue() }
         return START_NOT_STICKY
     }
 
@@ -104,7 +128,135 @@ class DownloadService : Service() {
         super.onDestroy()
     }
 
-    private fun runDownload(processId: String, url: String, title: String, kind: DownloadKind, selector: String?) {
+    private fun parseJob(intent: Intent): WorkJob? {
+        val kind = intent.getStringExtra(EXTRA_KIND)
+            ?.let { runCatching { DownloadKind.valueOf(it) }.getOrNull() }
+            ?: DownloadKind.VIDEO
+        val selector = intent.getStringExtra(EXTRA_SELECTOR)
+
+        val indices = intent.getIntArrayExtra(EXTRA_INDICES)
+        val playlistUrl = intent.getStringExtra(EXTRA_PLAYLIST_URL)
+        if (indices != null && playlistUrl != null) {
+            val titles = intent.getStringArrayExtra(EXTRA_TITLES) ?: emptyArray()
+            val items = indices.mapIndexed { i, index ->
+                val rawTitle = titles.getOrNull(i).orEmpty()
+                WorkItem(
+                    url = playlistUrl,
+                    title = rawTitle.ifBlank { getString(R.string.playlist_item_fallback, index) },
+                    kind = kind,
+                    selector = selector,
+                    playlistIndex = index
+                )
+            }
+            if (items.isEmpty()) return null
+            return WorkJob(
+                label = intent.getStringExtra(EXTRA_PLAYLIST_TITLE).orEmpty(),
+                isBatch = true,
+                items = items
+            )
+        }
+
+        val url = intent.getStringExtra(EXTRA_URL) ?: return null
+        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
+        return WorkJob(
+            label = title,
+            isBatch = false,
+            items = listOf(WorkItem(url = url, title = title, kind = kind, selector = selector))
+        )
+    }
+
+    /** Sequentially drains the job queue. A failed item is skipped and counted; cancel stops everything. */
+    private fun drainQueue() {
+        try {
+            while (true) {
+                val job = synchronized(queueLock) {
+                    val next = if (pendingJobs.isEmpty()) null else pendingJobs.removeFirst()
+                    if (next == null) draining = false
+                    next
+                } ?: break
+
+                if (DownloadCenter.cancelRequested) {
+                    DownloadCenter.state.value = DownloadCenter.state.value.copy(
+                        status = DownloadCenter.Status.CANCELLED
+                    )
+                    synchronized(queueLock) { pendingJobs.clear() }
+                    break
+                }
+
+                // Fresh job: clear any stale cancel flag / state from the previous one.
+                DownloadCenter.reset()
+                val total = job.items.size
+                var succeeded = 0
+                var failed = 0
+                var lastError: String? = null
+                var cancelled = false
+
+                for ((i, item) in job.items.withIndex()) {
+                    if (DownloadCenter.cancelRequested) {
+                        cancelled = true
+                        break
+                    }
+                    val processId = "dl_" + System.currentTimeMillis() + "_" + i
+                    currentProcessId = processId
+                    DownloadCenter.state.value = DownloadCenter.State(
+                        status = DownloadCenter.Status.RUNNING,
+                        processId = processId,
+                        title = item.title,
+                        queuePosition = i + 1,
+                        queueTotal = total,
+                        failedCount = failed
+                    )
+                    notifyProgress(item.title, -1f, -1, "")
+
+                    when (downloadOne(processId, item)) {
+                        ItemOutcome.SUCCESS -> succeeded++
+                        ItemOutcome.FAILED -> {
+                            failed++
+                            lastError = DownloadCenter.state.value.error ?: lastError
+                            DownloadCenter.state.value = DownloadCenter.state.value.copy(failedCount = failed)
+                        }
+                        ItemOutcome.CANCELLED -> cancelled = true
+                    }
+                    currentProcessId = null
+                    if (cancelled) break
+                }
+
+                when {
+                    cancelled || DownloadCenter.cancelRequested -> {
+                        DownloadCenter.state.value = DownloadCenter.state.value.copy(
+                            status = DownloadCenter.Status.CANCELLED
+                        )
+                        synchronized(queueLock) { pendingJobs.clear() }
+                        break
+                    }
+                    succeeded > 0 -> {
+                        DownloadCenter.state.value = DownloadCenter.state.value.copy(
+                            status = DownloadCenter.Status.DONE,
+                            progress = 100f,
+                            failedCount = failed
+                        )
+                        notifyJobFinished(job, succeeded, failed)
+                    }
+                    else -> {
+                        DownloadCenter.state.value = DownloadCenter.state.value.copy(
+                            status = DownloadCenter.Status.ERROR,
+                            error = lastError,
+                            failedCount = failed
+                        )
+                        notifyJobFailed(job)
+                    }
+                }
+            }
+        } finally {
+            synchronized(queueLock) { draining = false }
+            currentProcessId = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    /** Downloads one item (publish + library add included). Never throws; the outcome says how it ended. */
+    private fun downloadOne(processId: String, item: WorkItem): ItemOutcome {
         val staging = File(getExternalFilesDir(null), "staging/$processId")
         try {
             val app = VidLoaderApp.instance
@@ -116,14 +268,18 @@ class DownloadService : Service() {
             staging.deleteRecursively()
             staging.mkdirs()
 
-            val request = YoutubeDLRequest(url)
-            request.addOption("--no-playlist")
+            val request = YoutubeDLRequest(item.url)
+            if (item.playlistIndex != null) {
+                request.addOption("--playlist-items", item.playlistIndex.toString())
+            } else {
+                request.addOption("--no-playlist")
+            }
             request.addOption("--no-mtime")
             request.addOption("--retries", "3")
             request.addOption("-o", File(staging, "%(id)s.%(ext)s").absolutePath)
-            when (kind) {
+            when (item.kind) {
                 DownloadKind.VIDEO -> {
-                    request.addOption("-f", selector ?: "bestvideo+bestaudio/best")
+                    request.addOption("-f", item.selector ?: "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best")
                     request.addOption("--merge-output-format", "mp4")
                 }
                 DownloadKind.AUDIO_M4A -> {
@@ -136,6 +292,10 @@ class DownloadService : Service() {
                     request.addOption("-x")
                     request.addOption("--audio-format", "mp3")
                     request.addOption("--audio-quality", "0")
+                }
+                DownloadKind.DIRECT -> {
+                    // yt-dlp handles direct media URLs natively; "best" fetches the file as-is.
+                    request.addOption("-f", item.selector ?: "best")
                 }
             }
 
@@ -151,67 +311,59 @@ class DownloadService : Service() {
                 val pct = progress.toInt()
                 if (pct != lastPercent) {
                     lastPercent = pct
-                    notifyProgress(title, progress, eta, speed ?: current.speed)
+                    notifyProgress(item.title, progress, eta, speed ?: current.speed)
                 }
             }
 
-            if (DownloadCenter.cancelRequested) {
-                DownloadCenter.state.value = DownloadCenter.state.value.copy(status = DownloadCenter.Status.CANCELLED)
-                return
-            }
+            if (DownloadCenter.cancelRequested) return ItemOutcome.CANCELLED
 
             DownloadCenter.state.value = DownloadCenter.state.value.copy(status = DownloadCenter.Status.PROCESSING)
-            notifyProcessing(title)
+            notifyProcessing(item.title)
 
             val result = staging.listFiles()
                 ?.filter { it.isFile && !it.name.endsWith(".part") && !it.name.endsWith(".ytdl") && !it.name.endsWith(".tmp") && !it.name.endsWith(".webp") && !it.name.endsWith(".jpg") && !it.name.endsWith(".png") }
                 ?.maxByOrNull { it.length() }
                 ?: throw IOException("no output file produced")
 
-            val ext = result.extension.lowercase().ifBlank { if (kind == DownloadKind.VIDEO) "mp4" else "m4a" }
-            val displayName = FormatUtils.sanitizeFileName(title) + "." + ext
+            val ext = result.extension.lowercase().ifBlank {
+                if (item.kind == DownloadKind.VIDEO) "mp4" else "m4a"
+            }
+            val displayName = FormatUtils.sanitizeFileName(item.title) + "." + ext
             val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
-                ?: if (kind == DownloadKind.VIDEO) "video/mp4" else "audio/mpeg"
+                ?: if (item.kind == DownloadKind.VIDEO) "video/mp4" else "audio/mpeg"
 
             val savedUri = publishFile(result, displayName, mime)
 
-            val item = LibraryItem(
+            val libraryItem = LibraryItem(
                 id = processId,
-                title = title,
+                title = item.title,
                 fileName = displayName,
                 size = result.length(),
                 dateMillis = System.currentTimeMillis(),
                 uri = savedUri,
                 mime = mime,
-                sourceUrl = url,
-                isAudio = kind != DownloadKind.VIDEO
+                sourceUrl = item.url,
+                isAudio = item.kind == DownloadKind.AUDIO_M4A || item.kind == DownloadKind.AUDIO_MP3 ||
+                    ext in AUDIO_EXTENSIONS
             )
-            LibraryRepository(this).add(item)
+            LibraryRepository(this).add(libraryItem)
 
             DownloadCenter.state.value = DownloadCenter.state.value.copy(
-                status = DownloadCenter.Status.DONE,
-                itemId = item.id,
+                itemId = libraryItem.id,
                 progress = 100f
             )
-            notifyFinished(title, failed = false)
+            return ItemOutcome.SUCCESS
         } catch (e: YoutubeDL.CanceledException) {
-            DownloadCenter.state.value = DownloadCenter.state.value.copy(status = DownloadCenter.Status.CANCELLED)
+            return ItemOutcome.CANCELLED
         } catch (e: Exception) {
-            if (DownloadCenter.cancelRequested) {
-                DownloadCenter.state.value = DownloadCenter.state.value.copy(status = DownloadCenter.Status.CANCELLED)
+            return if (DownloadCenter.cancelRequested) {
+                ItemOutcome.CANCELLED
             } else {
-                DownloadCenter.state.value = DownloadCenter.state.value.copy(
-                    status = DownloadCenter.Status.ERROR,
-                    error = friendlyError(e)
-                )
-                notifyFinished(title, failed = true)
+                DownloadCenter.state.value = DownloadCenter.state.value.copy(error = friendlyError(e))
+                ItemOutcome.FAILED
             }
         } finally {
             staging.deleteRecursively()
-            currentProcessId = null
-            running = false
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
         }
     }
 
@@ -291,9 +443,15 @@ class DownloadService : Service() {
         return PendingIntent.getService(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
+    /** "٣ من ١٠ • " prefix while a multi-item job is running, else empty. */
+    private fun queuePrefix(): String {
+        val s = DownloadCenter.state.value
+        return if (s.queueTotal > 1) getString(R.string.playlist_progress, s.queuePosition, s.queueTotal) + " • " else ""
+    }
+
     private fun buildProgressNotification(title: String, progress: Float, eta: Long, speed: String): Notification {
         val pct = progress.toInt()
-        val detail = StringBuilder()
+        val detail = StringBuilder(queuePrefix())
         if (pct >= 0) detail.append(getString(R.string.download_progress, pct))
         if (eta > 0) detail.append(" • ").append(getString(R.string.eta_format, FormatUtils.eta(eta)))
         if (speed.isNotBlank()) detail.append(" • ").append(speed)
@@ -315,24 +473,52 @@ class DownloadService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         val notification = baseBuilder()
             .setContentTitle(getString(R.string.notif_downloading, title))
-            .setContentText(getString(R.string.processing))
+            .setContentText(queuePrefix() + getString(R.string.processing))
             .setOngoing(true)
             .setProgress(0, 0, true)
             .build()
         manager.notify(NOTIF_PROGRESS, notification)
     }
 
-    private fun notifyFinished(title: String, failed: Boolean) {
-        val manager = getSystemService(NotificationManager::class.java)
+    private fun resultPendingIntent(): PendingIntent {
         val openIntent = Intent(this, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_OPEN_LIBRARY, true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        val pending = PendingIntent.getActivity(this, 2, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        return PendingIntent.getActivity(this, 2, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun notifyJobFinished(job: WorkJob, succeeded: Int, failed: Int) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val title: String
+        val text: String
+        if (job.isBatch) {
+            title = getString(R.string.notif_batch_done, job.label)
+            text = if (failed > 0) {
+                getString(R.string.notif_batch_partial, succeeded, failed)
+            } else {
+                getString(R.string.notif_tap_to_open_library)
+            }
+        } else {
+            title = getString(R.string.notif_done, job.label)
+            text = getString(R.string.notif_tap_to_open_library)
+        }
         val notification = baseBuilder()
-            .setContentTitle(getString(if (failed) R.string.notif_failed else R.string.notif_done, title))
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(resultPendingIntent())
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .build()
+        manager.notify(NOTIF_RESULT, notification)
+    }
+
+    private fun notifyJobFailed(job: WorkJob) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val notification = baseBuilder()
+            .setContentTitle(getString(R.string.notif_failed, job.label))
             .setContentText(getString(R.string.notif_tap_to_open_library))
-            .setContentIntent(pending)
+            .setContentIntent(resultPendingIntent())
             .setAutoCancel(true)
             .setOngoing(false)
             .build()
@@ -347,15 +533,39 @@ class DownloadService : Service() {
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_SELECTOR = "selector"
+        private const val EXTRA_PLAYLIST_URL = "playlist_url"
+        private const val EXTRA_PLAYLIST_TITLE = "playlist_title"
+        private const val EXTRA_INDICES = "playlist_indices"
+        private const val EXTRA_TITLES = "playlist_titles"
         private const val CHANNEL_ID = "downloads"
         private const val NOTIF_PROGRESS = 1001
         private const val NOTIF_RESULT = 1002
         private val SPEED_REGEX = Regex("at\\s+([0-9.]+\\s*[KMG]i?B/s)")
+        private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
 
         fun startIntent(context: Context, url: String, title: String, spec: DownloadSpec): Intent {
             return Intent(context, DownloadService::class.java).apply {
                 putExtra(EXTRA_URL, url)
                 putExtra(EXTRA_TITLE, title)
+                putExtra(EXTRA_KIND, spec.kind.name)
+                putExtra(EXTRA_SELECTOR, spec.selector)
+            }
+        }
+
+        /** Starts (or queues) a playlist batch: entries #[indices] of [playlistUrl], one shared [spec] for all. */
+        fun startBatchIntent(
+            context: Context,
+            playlistUrl: String,
+            playlistTitle: String,
+            indices: IntArray,
+            titles: Array<String>,
+            spec: DownloadSpec
+        ): Intent {
+            return Intent(context, DownloadService::class.java).apply {
+                putExtra(EXTRA_PLAYLIST_URL, playlistUrl)
+                putExtra(EXTRA_PLAYLIST_TITLE, playlistTitle)
+                putExtra(EXTRA_INDICES, indices)
+                putExtra(EXTRA_TITLES, titles)
                 putExtra(EXTRA_KIND, spec.kind.name)
                 putExtra(EXTRA_SELECTOR, spec.selector)
             }

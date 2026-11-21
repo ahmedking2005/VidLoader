@@ -41,6 +41,29 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <!-- Share-sheet trampoline: forwards shared links into InfoActivity, no UI. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/app_name"
+            android:noHistory="true"
+            android:theme="@style/Theme.VidLoader.Trampoline">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="share"
+                    android:scheme="vidloader" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".download.DownloadService"
             android:exported="false"

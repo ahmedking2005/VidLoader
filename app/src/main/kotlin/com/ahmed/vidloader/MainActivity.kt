@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.ahmed.vidloader.databinding.ActivityMainBinding
+import com.ahmed.vidloader.ui.BrowserFragment
 import com.ahmed.vidloader.ui.HomeFragment
 import com.ahmed.vidloader.ui.LibraryFragment
 import com.ahmed.vidloader.ui.SettingsFragment
@@ -19,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val homeFragment = HomeFragment()
+    private val browserFragment = BrowserFragment()
     private val libraryFragment = LibraryFragment()
     private val settingsFragment = SettingsFragment()
     private var activeFragment: Fragment? = null
@@ -36,6 +38,7 @@ class MainActivity : AppCompatActivity() {
             supportFragmentManager.beginTransaction()
                 .add(R.id.nav_host, settingsFragment, TAG_SETTINGS).hide(settingsFragment)
                 .add(R.id.nav_host, libraryFragment, TAG_LIBRARY).hide(libraryFragment)
+                .add(R.id.nav_host, browserFragment, TAG_BROWSER).hide(browserFragment)
                 .add(R.id.nav_host, homeFragment, TAG_HOME)
                 .commit()
             activeFragment = homeFragment
@@ -46,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> show(homeFragment)
+                R.id.nav_browser -> show(browserFragment)
                 R.id.nav_library -> show(libraryFragment)
                 R.id.nav_settings -> show(settingsFragment)
                 else -> return@setOnItemSelectedListener false
@@ -100,6 +104,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_OPEN_LIBRARY = "open_library"
         private const val TAG_HOME = "home"
+        private const val TAG_BROWSER = "browser"
         private const val TAG_LIBRARY = "library"
         private const val TAG_SETTINGS = "settings"
     }

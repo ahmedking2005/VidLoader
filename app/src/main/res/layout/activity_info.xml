@@ -60,52 +60,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/download_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginBottom="12dp"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
-
-                    <TextView
-                        android:id="@+id/download_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/downloading"
-                        android:textAppearance="?attr/textAppearanceTitleSmall" />
-
-                    <com.google.android.material.progressindicator.LinearProgressIndicator
-                        android:id="@+id/download_progress"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:indeterminate="true" />
-
-                    <TextView
-                        android:id="@+id/download_detail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/cancel_download_button"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/cancel" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/formats_list"
                 android:layout_width="match_parent"
@@ -113,6 +67,102 @@
                 android:layout_weight="1"
                 android:clipToPadding="false"
                 android:paddingBottom="12dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/playlist_box"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:id="@+id/playlist_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:maxLines="3" />
+
+                    <TextView
+                        android:id="@+id/playlist_meta"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/playlist_quality_label"
+                        android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                    <RadioGroup
+                        android:id="@+id/playlist_quality"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/quality_best"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/best_quality" />
+
+                        <RadioButton
+                            android:id="@+id/quality_720"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="720p" />
+
+                        <RadioButton
+                            android:id="@+id/quality_480"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="480p" />
+
+                        <RadioButton
+                            android:id="@+id/quality_mp3"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/audio_mp3" />
+                    </RadioGroup>
+
+                    <CheckBox
+                        android:id="@+id/select_all"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/select_all" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/playlist_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingBottom="12dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/download_selected"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginBottom="12dp" />
         </LinearLayout>
 
         <LinearLayout
@@ -158,4 +208,50 @@
                 android:text="@string/retry" />
         </LinearLayout>
     </FrameLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/download_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/download_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/downloading"
+                android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/download_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:indeterminate="true" />
+
+            <TextView
+                android:id="@+id/download_detail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cancel_download_button"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/cancel" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 </LinearLayout>
