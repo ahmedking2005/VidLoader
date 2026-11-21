@@ -91,7 +91,7 @@ class ConvertService : Service() {
 
             val isMp3 = mode == MODE_MP3
             val base = item.fileName.substringBeforeLast('.').ifBlank { "video" }
-            val outName = if (isMp3) "$base [MP3].mp3" else "$base [مضغوط].mp4"
+            val outName = if (isMp3) "$base [MP3].mp3" else "$base [${getString(R.string.convert_compressed_suffix)}].mp4"
             val output = File(staging, outName)
 
             val args = mutableListOf(ffmpeg.absolutePath, "-y", "-i", source.absolutePath)

@@ -278,7 +278,7 @@ class LibraryFragment : Fragment() {
         adapter.items = sorted
         val total = sorted.sumOf { it.size }
         binding.completedStats.text =
-            getString(R.string.library_stats, sorted.size, FormatUtils.humanSize(total))
+            getString(R.string.library_stats, sorted.size, FormatUtils.humanSize(requireContext(), total))
         binding.emptyText.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
         binding.libraryList.visibility = if (sorted.isEmpty()) View.GONE else View.VISIBLE
     }

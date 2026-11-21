@@ -1,42 +1,45 @@
 package com.ahmed.vidloader.util
 
-/** Maps raw yt-dlp / library errors to friendly Arabic messages. */
-fun friendlyError(e: Throwable): String {
+import android.content.Context
+import com.ahmed.vidloader.R
+
+/** Maps raw yt-dlp / library errors to friendly localised messages. */
+fun friendlyError(context: Context, e: Throwable): String {
     val raw = (e.message ?: "").trim()
     val m = raw.lowercase()
     return when {
         m.contains("unsupported url") ->
-            "هذا الموقع أو الرابط غير مدعوم من محرك الاستخراج."
+            context.getString(R.string.err_unsupported_url)
         m.contains("private video") || m.contains("video is private") || m.contains("this video is private") ->
-            "هذا الفيديو خاص ولا يمكن تنزيله."
+            context.getString(R.string.err_private_video)
         m.contains("confirm your age") || m.contains("age-restricted") || m.contains("age restricted") ->
-            "هذا الفيديو مقيّد بالعمر ويتطلب تسجيل الدخول، فلا يمكن تنزيله."
+            context.getString(R.string.err_age_restricted)
         m.contains("sign in to confirm") || m.contains("not a bot") || m.contains("captcha") ->
-            "الموقع يطلب تحققًا إضافيًا حاليًا. جرّب تحديث محرك الاستخراج من الإعدادات ثم أعد المحاولة."
+            context.getString(R.string.err_verification_required)
         m.contains("requested format is not available") ->
-            "الجودة المطلوبة غير متاحة لهذا الفيديو، اختر جودة أخرى."
+            context.getString(R.string.err_format_unavailable)
         m.contains("video unavailable") || m.contains("this video is no longer available") || m.contains("removed") ->
-            "هذا الفيديو غير متاح أو تمت إزالته."
+            context.getString(R.string.err_video_unavailable)
         m.contains("unable to download") || m.contains("timed out") || m.contains("timeout") ||
             m.contains("failed to resolve") || m.contains("network is unreachable") ||
             m.contains("connection reset") || m.contains("connection refused") ||
             m.contains("unreachable host") || m.contains("http error 5") ->
-            "خطأ في الاتصال أو في الموقع. تحقق من الإنترنت وحاول مجددًا."
+            context.getString(R.string.err_network)
         m.contains("http error 404") ->
-            "لم يتم العثور على هذا الفيديو (404)."
+            context.getString(R.string.err_not_found)
         m.contains("http error 403") ->
-            "الموقع رفض الطلب (403). جرّب تحديث محرك الاستخراج من الإعدادات."
+            context.getString(R.string.err_forbidden)
         m.contains("ffmpeg") ->
-            "حدثت مشكلة أثناء دمج أو تحويل الملف بعد التنزيل."
+            context.getString(R.string.err_merge_failed)
         m.contains("engine") && m.contains("init") ->
-            "محرك التنزيل غير جاهز بعد، انتظر ثواني وحاول مجددًا."
-        raw.isBlank() -> "حدث خطأ غير متوقع."
+            context.getString(R.string.err_engine_not_ready)
+        raw.isBlank() -> context.getString(R.string.err_unexpected)
         else -> {
             val errorLine = raw.lineSequence()
                 .firstOrNull { it.contains("ERROR", ignoreCase = true) }
                 ?.substringAfter("ERROR:")?.substringAfter("ERROR")?.trim()
-            if (!errorLine.isNullOrBlank()) "حدث خطأ: ${errorLine.take(180)}"
-            else "حدث خطأ غير متوقع."
+            if (!errorLine.isNullOrBlank()) context.getString(R.string.err_with_detail, errorLine.take(180))
+            else context.getString(R.string.err_unexpected)
         }
     }
 }

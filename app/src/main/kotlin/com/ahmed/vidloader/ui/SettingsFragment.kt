@@ -334,7 +334,7 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
                 refreshEngineVersion()
             }.onFailure { e ->
-                Toast.makeText(requireContext(), getString(R.string.update_failed, friendlyError(e)), Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), getString(R.string.update_failed, friendlyError(requireContext(), e)), Toast.LENGTH_LONG).show()
             }
         }
     }

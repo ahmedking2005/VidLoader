@@ -1,276 +1,241 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">منزّل الفيديو</string>
-
-    <!-- التنقل -->
-    <string name="nav_home">الرئيسية</string>
-    <string name="nav_library">المكتبة</string>
-    <string name="nav_settings">الإعدادات</string>
-
-    <!-- الرئيسية -->
-    <string name="home_hint">الصق رابط الفيديو هنا — يمكنك لصق عدة روابط، كل رابط في سطر</string>
-    <string name="paste">لصق</string>
-    <string name="fetch_info">جلب المعلومات</string>
-    <string name="home_subtitle">يدعم يوتيوب ومئات المواقع الأخرى</string>
-    <string name="error_empty_url">أدخل رابطًا أولًا</string>
-    <string name="error_invalid_url">لم يتم العثور على رابط صالح</string>
-    <string name="error_no_clipboard">الحافظة فارغة</string>
-
-    <!-- شاشة المعلومات -->
-    <string name="info_loading">جارٍ جلب معلومات الفيديو…</string>
-    <string name="info_video_qualities">جودات الفيديو</string>
-    <string name="info_audio_only">صوت فقط</string>
-    <string name="info_best_quality">أفضل جودة</string>
-    <string name="audio_m4a">صوت فقط — M4A</string>
-    <string name="audio_mp3">صوت فقط — MP3</string>
-    <string name="download">تنزيل</string>
-    <string name="approx_size">الحجم التقريبي: %1$s</string>
-    <string name="duration_format">المدة: %1$s</string>
-    <string name="from_site">المصدر: %1$s</string>
-
-    <!-- التنزيل -->
-    <string name="downloading">جارٍ التنزيل…</string>
-    <string name="download_progress">%1$d٪</string>
-    <string name="eta_format">المتبقي: %1$s</string>
-    <string name="speed_format">السرعة: %1$s</string>
-    <string name="cancel">إلغاء</string>
-    <string name="download_cancelled">تم إلغاء التنزيل</string>
-    <string name="download_done">اكتمل التنزيل</string>
-    <string name="download_done_body">تم حفظ «%1$s» في التنزيلات</string>
-    <string name="download_failed">فشل التنزيل</string>
-    <string name="download_already_running">يوجد تنزيل آخر جارٍ حاليًا</string>
-    <string name="processing">جارٍ المعالجة والدمج…</string>
-    <string name="open_library">فتح المكتبة</string>
-
-    <!-- المكتبة -->
-    <string name="library_empty">لا توجد تنزيلات بعد.\nستظهر هنا الملفات التي تنزّلها.</string>
-    <string name="action_open">فتح</string>
-    <string name="action_share">مشاركة</string>
-    <string name="action_delete">حذف</string>
-    <string name="delete_confirm_title">حذف الملف؟</string>
-    <string name="delete_confirm_body">سيتم حذف «%1$s» نهائيًا.</string>
-    <string name="yes">نعم</string>
-    <string name="no">لا</string>
-    <string name="file_missing">الملف غير موجود</string>
-    <string name="no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
-
-    <!-- الإعدادات -->
-    <string name="settings_engine_title">محرك الاستخراج (yt-dlp)</string>
-    <string name="settings_engine_desc">تحديث المحرك يحل أغلب مشاكل التنزيل من يوتيوب عند تغيّر نظامه.</string>
-    <string name="update_engine">تحديث محرك الاستخراج</string>
-    <string name="updating_engine">جارٍ تحديث المحرك…</string>
-    <string name="update_success">تم تحديث المحرك بنجاح</string>
-    <string name="update_already_latest">المحرك محدّث — لا يوجد تحديث جديد</string>
-    <string name="update_failed">فشل تحديث المحرك: %1$s</string>
-    <string name="settings_about_title">حول التطبيق</string>
-    <string name="settings_about_desc">منزّل الفيديو — إصدار %1$s\nتُحفظ التنزيلات في مجلد Downloads/VidLoader على الجهاز.</string>
-    <string name="settings_storage_note">على أندرويد 9 وما قبله يحتاج التطبيق إذن التخزين لحفظ الملفات في مجلد التنزيلات.</string>
-
-    <!-- الإشعارات -->
-    <string name="notif_channel_downloads">التنزيلات</string>
-    <string name="notif_downloading">جارٍ تنزيل: %1$s</string>
-    <string name="notif_done">اكتمل التنزيل: %1$s</string>
-    <string name="notif_failed">فشل تنزيل: %1$s</string>
-    <string name="notif_tap_to_open_library">اضغط لفتح المكتبة</string>
-
-    <!-- أخطاء عامة -->
-    <string name="error_engine_not_ready">محرك التنزيل غير جاهز بعد، انتظر ثواني وحاول مجددًا</string>
-    <string name="error_generic">حدث خطأ غير متوقع</string>
-    <string name="retry">حاول مجددًا</string>
-
-    <!-- إصلاحات الربط -->
-    <string name="best_quality">أفضل جودة (حتى 1080p)</string>
-    <string name="delete">حذف</string>
-    <string name="delete_title">حذف الملف</string>
-    <string name="delete_message">سيتم حذف "%1$s" نهائيًا.</string>
-    <string name="deleted">تم حذف الملف</string>
-    <string name="download_started">بدأ التنزيل</string>
-    <string name="engine_version_format">إصدار المحرك: %1$s</string>
-    <string name="engine_version_unknown">غير معروف</string>
-    <string name="error_no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
-    <string name="error_storage_permission">يحتاج التطبيق إلى إذن التخزين لحفظ التنزيلات على هذا الجهاز</string>
-
-    <!-- قوائم التشغيل -->
-    <string name="playlist_meta_format">قائمة تشغيل • %1$d فيديو</string>
-    <string name="playlist_quality_label">الجودة لكل القائمة</string>
-    <string name="select_all">تحديد الكل</string>
-    <string name="download_selected">تنزيل المحدد (%1$d)</string>
-    <string name="playlist_progress">%1$d من %2$d</string>
-    <string name="playlist_failed_count">فشل %1$d</string>
-    <string name="playlist_item_fallback">العنصر %1$d</string>
-    <string name="download_queued">أُضيف إلى قائمة انتظار التنزيلات</string>
-    <string name="notif_batch_done">اكتمل تنزيل القائمة: %1$s</string>
-    <string name="notif_batch_partial">نجح %1$d • فشل %2$d</string>
-
-    <!-- المتصفح الداخلي -->
-    <string name="nav_browser">المتصفح</string>
-    <string name="browser_hint">ابحث أو الصق رابطًا…</string>
-    <string name="browser_back">رجوع</string>
-    <string name="browser_forward">تقديم</string>
-    <string name="browser_reload">إعادة تحميل</string>
-    <string name="browser_go">اذهب</string>
-    <string name="browser_download">تنزيل الصفحة</string>
-    <string name="detected_videos">فيديوهات مكتشفة (%1$d)</string>
-    <string name="detected_title">فيديوهات مكتشفة في هذه الصفحة</string>
-    <string name="detected_none">لا توجد روابط فيديو مكتشفة في هذه الصفحة بعد</string>
-    <string name="detected_page_video">فيديو هذه الصفحة — %1$s</string>
-    <string name="detected_empty_hint">لم يتم رصد ملفات فيديو مباشرة في هذه الصفحة — لو الصفحة من موقع مدعوم (يوتيوب وغيره) جرّب زر تنزيل الصفحة</string>
-    <string name="direct_download">تنزيل مباشر</string>
-    <string name="open_in_downloader">فتح في المنزّل</string>
-    <string name="close">إغلاق</string>
-    <string name="shared_video">فيديو مشترك</string>
-
-    <!-- إيقاف مؤقت واستئناف -->
-    <string name="pause">إيقاف مؤقت</string>
-    <string name="resume">استئناف</string>
-    <string name="paused_downloads">تنزيلات موقوفة</string>
-    <string name="download_paused">أُوقف التنزيل مؤقتًا — يمكنك استئنافه من المكتبة</string>
-    <string name="notif_paused">متوقف مؤقتًا: %1$s</string>
-    <string name="paused_progress">توقف عند %1$d٪</string>
-    <string name="notif_paused_text">يمكنك الاستئناف من هنا أو من التطبيق</string>
-    <string name="delete_paused_message">سيتم حذف التنزيل الموقوف «%1$s» وملفاته الجزئية نهائيًا.</string>
-    <string name="paused_deleted">تم حذف التنزيل الموقوف</string>
-
-    <!-- الترجمة -->
-    <string name="subtitles_with_video">تنزيل الترجمة مع الفيديو</string>
-
-    <!-- روابط متعددة -->
-    <string name="links_added">أُضيفت %1$d روابط إلى قائمة التنزيل</string>
-
-    <!-- التنزيل السريع -->
-    <string name="quick_download">تنزيل سريع</string>
-    <string name="quick_settings_title">التنزيل السريع</string>
-    <string name="quick_settings_desc">الجودة التي تُستخدم عند التنزيل السريع — من زر «تنزيل سريع» أو المشاركة أو المتصفح — من غير فتح شاشة المعلومات. يبدأ التنزيل في الخلفية ويتعرّف التطبيق على باقي المعلومات وحده.</string>
+    <!-- Default (English) strings — used for English phones and as fallback for all other languages -->
+    <string name="app_name">VidLoader</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_settings">Settings</string>
+    <string name="home_hint">Paste the video link here — you can paste several links, one per line</string>
+    <string name="paste">Paste</string>
+    <string name="fetch_info">Fetch info</string>
+    <string name="home_subtitle">Supports YouTube and hundreds of other sites</string>
+    <string name="error_empty_url">Enter a link first</string>
+    <string name="error_invalid_url">No valid link found</string>
+    <string name="error_no_clipboard">Clipboard is empty</string>
+    <string name="info_loading">Fetching video info…</string>
+    <string name="info_video_qualities">Video qualities</string>
+    <string name="info_audio_only">Audio only</string>
+    <string name="info_best_quality">Best quality</string>
+    <string name="audio_m4a">Audio only — M4A</string>
+    <string name="audio_mp3">Audio only — MP3</string>
+    <string name="download">Download</string>
+    <string name="approx_size">Approx. size: %1$s</string>
+    <string name="duration_format">Duration: %1$s</string>
+    <string name="from_site">Source: %1$s</string>
+    <string name="downloading">Downloading…</string>
+    <string name="download_progress">%1$d%%</string>
+    <string name="eta_format">Remaining: %1$s</string>
+    <string name="speed_format">Speed: %1$s</string>
+    <string name="cancel">Cancel</string>
+    <string name="download_cancelled">Download cancelled</string>
+    <string name="download_done">Download complete</string>
+    <string name="download_done_body">Saved "%1$s" in Downloads</string>
+    <string name="download_failed">Download failed</string>
+    <string name="download_already_running">Another download is already in progress</string>
+    <string name="processing">Processing and merging…</string>
+    <string name="open_library">Open library</string>
+    <string name="library_empty">No downloads yet.\nFiles you download will appear here.</string>
+    <string name="action_open">Open</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="delete_confirm_title">Delete file?</string>
+    <string name="delete_confirm_body">"%1$s" will be permanently deleted.</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="file_missing">File not found</string>
+    <string name="no_app_to_open">No app can open this file</string>
+    <string name="settings_engine_title">Extraction engine (yt-dlp)</string>
+    <string name="settings_engine_desc">Updating the engine fixes most YouTube download issues when their system changes.</string>
+    <string name="update_engine">Update extraction engine</string>
+    <string name="updating_engine">Updating engine…</string>
+    <string name="update_success">Engine updated successfully</string>
+    <string name="update_already_latest">Engine is up to date — no new update</string>
+    <string name="update_failed">Engine update failed: %1$s</string>
+    <string name="settings_about_title">About</string>
+    <string name="settings_about_desc">VidLoader — version %1$s\nDownloads are saved in the Downloads/VidLoader folder on your device.</string>
+    <string name="settings_storage_note">On Android 9 and earlier, the app needs storage permission to save files in the Downloads folder.</string>
+    <string name="notif_channel_downloads">Downloads</string>
+    <string name="notif_downloading">Downloading: %1$s</string>
+    <string name="notif_done">Download complete: %1$s</string>
+    <string name="notif_failed">Download failed: %1$s</string>
+    <string name="notif_tap_to_open_library">Tap to open the library</string>
+    <string name="error_engine_not_ready">The download engine is not ready yet, wait a few seconds and try again</string>
+    <string name="error_generic">An unexpected error occurred</string>
+    <string name="retry">Try again</string>
+    <string name="best_quality">Best quality (up to 1080p)</string>
+    <string name="delete">Delete</string>
+    <string name="delete_title">Delete file</string>
+    <string name="delete_message">"%1$s" will be permanently deleted.</string>
+    <string name="deleted">File deleted</string>
+    <string name="download_started">Download started</string>
+    <string name="engine_version_format">Engine version: %1$s</string>
+    <string name="engine_version_unknown">Unknown</string>
+    <string name="error_no_app_to_open">No app can open this file</string>
+    <string name="error_storage_permission">The app needs storage permission to save downloads on this device</string>
+    <string name="playlist_meta_format">Playlist • %1$d videos</string>
+    <string name="playlist_quality_label">Quality for the whole playlist</string>
+    <string name="select_all">Select all</string>
+    <string name="download_selected">Download selected (%1$d)</string>
+    <string name="playlist_progress">%1$d of %2$d</string>
+    <string name="playlist_failed_count">%1$d failed</string>
+    <string name="playlist_item_fallback">Item %1$d</string>
+    <string name="download_queued">Added to the download queue</string>
+    <string name="notif_batch_done">Playlist download complete: %1$s</string>
+    <string name="notif_batch_partial">Succeeded %1$d • Failed %2$d</string>
+    <string name="nav_browser">Browser</string>
+    <string name="browser_hint">Search or paste a link…</string>
+    <string name="browser_back">Back</string>
+    <string name="browser_forward">Forward</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_go">Go</string>
+    <string name="browser_download">Download page</string>
+    <string name="detected_videos">Detected videos (%1$d)</string>
+    <string name="detected_title">Videos detected on this page</string>
+    <string name="detected_none">No video links detected on this page yet</string>
+    <string name="detected_page_video">This page video — %1$s</string>
+    <string name="detected_empty_hint">No direct video files were spotted on this page — if the page is from a supported site (YouTube and others), try the Download page button</string>
+    <string name="direct_download">Direct download</string>
+    <string name="open_in_downloader">Open in downloader</string>
+    <string name="close">Close</string>
+    <string name="shared_video">Shared video</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="paused_downloads">Paused downloads</string>
+    <string name="download_paused">Download paused — you can resume it from the library</string>
+    <string name="notif_paused">Paused: %1$s</string>
+    <string name="paused_progress">Paused at %1$d%%</string>
+    <string name="notif_paused_text">You can resume from here or from the app</string>
+    <string name="delete_paused_message">The paused download "%1$s" and its partial files will be permanently deleted.</string>
+    <string name="paused_deleted">Paused download deleted</string>
+    <string name="subtitles_with_video">Download subtitles with the video</string>
+    <string name="links_added">Added %1$d links to the download queue</string>
+    <string name="quick_download">Quick download</string>
+    <string name="quick_settings_title">Quick download</string>
+    <string name="quick_settings_desc">The quality used for quick downloads — from the Quick Download button, sharing, or the browser — without opening the info screen. The download starts in the background and the app figures out the rest on its own.</string>
     <string name="preset_720">720p</string>
     <string name="preset_480">480p</string>
     <string name="preset_360">360p</string>
-    <string name="share_opens_picker">فتح شاشة الجودة عند المشاركة</string>
-    <string name="quick_download_started">بدأ التنزيل في الخلفية</string>
-    <string name="playlist_fetching">جارٍ جلب معلومات قائمة التشغيل…</string>
+    <string name="share_opens_picker">Open quality screen when sharing</string>
+    <string name="quick_download_started">Download started in the background</string>
+    <string name="playlist_fetching">Fetching playlist info…</string>
+    <string name="check_app_updates">Check for app updates</string>
+    <string name="update_available_title">New version available</string>
+    <string name="update_available_body">Version %1$s is now available (you are on %2$s)</string>
+    <string name="download_now">Download now</string>
+    <string name="later">Later</string>
+    <string name="app_up_to_date">You are on the latest version</string>
+    <string name="update_check_failed">Could not check for updates</string>
+    <string name="paused_label">Paused</string>
+    <string name="tab_downloading">Downloading</string>
+    <string name="tab_completed">Completed</string>
+    <string name="active_empty">No downloads in progress or paused right now</string>
+    <string name="status_queued">Queued</string>
+    <string name="waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="notif_waiting_wifi_body">Downloads waiting for a Wi-Fi connection</string>
+    <string name="download_settings_title">Download settings</string>
+    <string name="download_path">Download folder</string>
+    <string name="download_path_default">Downloads/VidLoader</string>
+    <string name="change">Change</string>
+    <string name="default_label">Default</string>
+    <string name="max_tasks_title">Max simultaneous downloads</string>
+    <string name="max_tasks_wifi">Over Wi-Fi</string>
+    <string name="max_tasks_mobile">Over mobile data</string>
+    <string name="rate_limit">Download speed limit</string>
+    <string name="rate_unlimited">Unlimited</string>
+    <string name="mobile_data">Download over mobile data</string>
+    <string name="mobile_data_desc">When off, new downloads wait for Wi-Fi and do not start over mobile data</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_app">App theme</string>
+    <string name="theme_system">Use system setting</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="section_cut">Cut a section (download part of the video only)</string>
+    <string name="section_start_hint">From (mm:ss)</string>
+    <string name="section_end_hint">To (mm:ss) — optional</string>
+    <string name="section_invalid">Invalid cut time — use mm:ss format and make sure the start is before the end</string>
+    <string name="sponsorblock">Remove ads and sponsors from YouTube</string>
+    <string name="sponsorblock_desc">Removes sponsor segments, intros and outros from YouTube videos during download (SponsorBlock)</string>
+    <string name="cookies_title">Cookies file (optional)</string>
+    <string name="cookies_none">Not set</string>
+    <string name="cookies_import">Import</string>
+    <string name="cookies_remove">Remove</string>
+    <string name="cookies_hint">For content that requires sign-in — the file stays only on your device</string>
+    <string name="cookies_imported">Cookies file imported</string>
+    <string name="cookies_import_failed">Could not import the cookies file</string>
+    <string name="cookies_removed">Cookies file removed</string>
+    <string name="error_link_expired">Link expired</string>
+    <string name="failed_label">Failed</string>
+    <string name="retry_failed">Retry</string>
+    <string name="delete_failed_message">The failed download record "%1$s" will be removed from the list.</string>
+    <string name="failed_deleted">Record deleted</string>
+    <string name="player_error">Could not play the file</string>
+    <string name="library_stats">%1$d files — total size %2$s</string>
+    <string name="sort_by">Sort</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_largest">Largest first</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="delete_selected">Delete selected (%1$d)</string>
+    <string name="delete_selected_message">%1$d files will be permanently deleted.</string>
+    <string name="deleted_count">Deleted %1$d files</string>
+    <string name="copy_link_first">Copy a link first</string>
+    <string name="library_search_hint">Search completed…</string>
+    <string name="action_tag">Tag</string>
+    <string name="tag_new">New tag…</string>
+    <string name="tag_none">No tag</string>
+    <string name="link_history">Link history</string>
+    <string name="clear_history">Clear history</string>
+    <string name="history_empty">No links in history yet</string>
+    <string name="history_status_started">Download started</string>
+    <string name="history_status_completed">Completed</string>
+    <string name="history_status_failed">Failed</string>
+    <string name="history_delete_message">"%1$s" will be removed from the link history.</string>
+    <string name="history_clear_message">The entire link history will be cleared.</string>
+    <string name="convert_to_mp3">Convert to MP3</string>
+    <string name="convert_compress">Compress video</string>
+    <string name="convert_started">Conversion started in the background</string>
+    <string name="convert_done">Conversion complete: %1$s</string>
+    <string name="convert_failed">Conversion failed</string>
+    <string name="convert_failed_for">Conversion failed: %1$s</string>
+    <string name="convert_no_ffmpeg">The conversion engine (ffmpeg) was not found inside the app</string>
+    <string name="watch_title">Watching</string>
+    <string name="watch_url_hint">Channel or playlist link</string>
+    <string name="watch_label_hint">Optional name — e.g. Programming channel</string>
+    <string name="watch_add">Add to watch list</string>
+    <string name="watch_seeding">Setting up watching…</string>
+    <string name="watch_empty">No channels or playlists being watched yet.\nAdd a link above and any new video published after that will be downloaded automatically.</string>
+    <string name="watch_invalid_url">Enter a valid link starting with http</string>
+    <string name="watch_seeded">Watching started — only new videos will be downloaded from now on</string>
+    <string name="watch_added_unseeded">Added — watching will be set up at the first check</string>
+    <string name="watch_last_checked">Last checked: %1$s</string>
+    <string name="watch_never_checked">Not checked yet</string>
+    <string name="watch_delete_message">Watching "%1$s" will be stopped and removed.</string>
+    <string name="schedule_download">Schedule download</string>
+    <string name="scheduled_title">Scheduled downloads</string>
+    <string name="scheduled_empty">No scheduled downloads</string>
+    <string name="schedule_past">Pick a date and time in the future</string>
+    <string name="scheduled_for">Scheduled for %1$s</string>
+    <string name="scheduled_at">Scheduled: %1$s</string>
 
-    <!-- تحديث التطبيق -->
-    <string name="check_app_updates">التحقق من تحديثات التطبيق</string>
-    <string name="update_available_title">يتوفر إصدار جديد</string>
-    <string name="update_available_body">الإصدار %1$s متاح الآن (أنت على %2$s)</string>
-    <string name="download_now">تنزيل الآن</string>
-    <string name="later">لاحقًا</string>
-    <string name="app_up_to_date">أنت على أحدث إصدار</string>
-    <string name="update_check_failed">تعذّر التحقق من التحديثات</string>
-
-    <!-- v1.6: تبويبا المكتبة + إعدادات التنزيل والسمة -->
-    <string name="paused_label">متوقف مؤقتًا</string>
-    <string name="tab_downloading">قيد التنزيل</string>
-    <string name="tab_completed">المكتملة</string>
-    <string name="active_empty">لا توجد تنزيلات جارية أو متوقفة حاليًا</string>
-    <string name="status_queued">في الانتظار</string>
-    <string name="waiting_wifi">بانتظار Wi-Fi</string>
-    <string name="notif_waiting_wifi_body">تنزيلات بانتظار الاتصال بـ Wi-Fi</string>
-    <string name="download_settings_title">إعدادات التنزيل</string>
-    <string name="download_path">مسار التنزيل</string>
-    <string name="download_path_default">التنزيلات/VidLoader</string>
-    <string name="change">تغيير</string>
-    <string name="default_label">الافتراضي</string>
-    <string name="max_tasks_title">الحد الأقصى لمهام التنزيل المتزامنة</string>
-    <string name="max_tasks_wifi">عبر Wi-Fi</string>
-    <string name="max_tasks_mobile">عبر بيانات الهاتف</string>
-    <string name="rate_limit">حد سرعة التنزيل</string>
-    <string name="rate_unlimited">غير محدود</string>
-    <string name="mobile_data">التنزيل عبر بيانات الهاتف</string>
-    <string name="mobile_data_desc">عند الإيقاف، تنتظر التنزيلات الجديدة اتصال Wi-Fi ولا تبدأ عبر بيانات الهاتف</string>
-    <string name="theme_title">السمة</string>
-    <string name="theme_app">سمة التطبيق</string>
-    <string name="theme_system">استخدام إعدادات النظام</string>
-    <string name="theme_light">فاتح</string>
-    <string name="theme_dark">داكن</string>
-
-    <!-- v1.7: قصّ المقاطع -->
-    <string name="section_cut">قصّ مقطع (تنزيل جزء من الفيديو فقط)</string>
-    <string name="section_start_hint">من (مم:ثث)</string>
-    <string name="section_end_hint">إلى (مم:ثث) — اختياري</string>
-    <string name="section_invalid">وقت القصّ غير صالح — استخدم صيغة مم:ثث وتأكد أن البداية قبل النهاية</string>
-
-    <!-- v1.7: SponsorBlock + الكوكيز -->
-    <string name="sponsorblock">إزالة الإعلانات والرعاة من يوتيوب</string>
-    <string name="sponsorblock_desc">يحذف مقاطع الرعاة والمقدمات والنهايات من فيديوهات يوتيوب أثناء التنزيل (SponsorBlock)</string>
-    <string name="cookies_title">ملف الكوكيز (اختياري)</string>
-    <string name="cookies_none">غير مُعدّ</string>
-    <string name="cookies_import">استيراد</string>
-    <string name="cookies_remove">إزالة</string>
-    <string name="cookies_hint">للمحتوى الذي يتطلب تسجيل الدخول — يبقى الملف على جهازك فقط</string>
-    <string name="cookies_imported">تم استيراد ملف الكوكيز</string>
-    <string name="cookies_import_failed">تعذّر استيراد ملف الكوكيز</string>
-    <string name="cookies_removed">تمت إزالة ملف الكوكيز</string>
-
-    <!-- v1.7: الفشل وإعادة المحاولة -->
-    <string name="error_link_expired">انتهى الرابط</string>
-    <string name="failed_label">فشل</string>
-    <string name="retry_failed">إعادة المحاولة</string>
-    <string name="delete_failed_message">سيتم حذف سجل التنزيل الفاشل «%1$s» من القائمة.</string>
-    <string name="failed_deleted">تم حذف السجل</string>
-
-    <!-- v1.8: المشغّل المدمج -->
-    <string name="player_error">تعذّر تشغيل الملف</string>
-
-    <!-- v1.8: فرز المكتبة وإحصاءاتها -->
-    <string name="library_stats">%1$d ملف — الحجم الكلي %2$s</string>
-    <string name="sort_by">فرز</string>
-    <string name="sort_newest">الأحدث أولاً</string>
-    <string name="sort_oldest">الأقدم أولاً</string>
-    <string name="sort_largest">الأكبر حجمًا</string>
-    <string name="sort_name">الاسم أ–ي</string>
-
-    <!-- v1.8: الحذف الجماعي -->
-    <string name="delete_selected">حذف المحدد (%1$d)</string>
-    <string name="delete_selected_message">سيتم حذف %1$d ملف نهائيًا.</string>
-    <string name="deleted_count">تم حذف %1$d ملف</string>
-
-    <!-- v1.8: بلاطة الإعدادات السريعة واختصار الشاشة الرئيسية -->
-    <string name="copy_link_first">انسخ رابطًا أولًا</string>
-
-    <!-- v1.9: بحث المكتبة والوسوم -->
-    <string name="library_search_hint">ابحث في المكتملة…</string>
-    <string name="action_tag">وسم</string>
-    <string name="tag_new">وسم جديد…</string>
-    <string name="tag_none">بدون وسم</string>
-
-    <!-- v1.9: سجل الروابط -->
-    <string name="link_history">سجل الروابط</string>
-    <string name="clear_history">مسح السجل</string>
-    <string name="history_empty">لا توجد روابط في السجل بعد</string>
-    <string name="history_status_started">بدأ التنزيل</string>
-    <string name="history_status_completed">اكتمل</string>
-    <string name="history_status_failed">فشل</string>
-    <string name="history_delete_message">سيتم حذف «%1$s» من سجل الروابط.</string>
-    <string name="history_clear_message">سيتم مسح سجل الروابط بالكامل.</string>
-
-    <!-- v1.9: التحويل السريع -->
-    <string name="convert_to_mp3">تحويل إلى MP3</string>
-    <string name="convert_compress">ضغط الفيديو</string>
-    <string name="convert_started">بدأ التحويل في الخلفية</string>
-    <string name="convert_done">اكتمل التحويل: %1$s</string>
-    <string name="convert_failed">فشل التحويل</string>
-    <string name="convert_failed_for">فشل تحويل: %1$s</string>
-    <string name="convert_no_ffmpeg">لم يتم العثور على محرك التحويل (ffmpeg) داخل التطبيق</string>
-
-    <!-- v1.10: المراقبة -->
-    <string name="watch_title">المراقبة</string>
-    <string name="watch_url_hint">رابط قناة أو قائمة تشغيل</string>
-    <string name="watch_label_hint">اسم اختياري — مثال: قناة شرح البرمجة</string>
-    <string name="watch_add">إضافة للمراقبة</string>
-    <string name="watch_seeding">جارٍ تجهيز المراقبة…</string>
-    <string name="watch_empty">لا توجد قنوات أو قوائم قيد المراقبة بعد.\nأضف رابطًا بالأعلى وسيتم تنزيل أي فيديو جديد يُنشر بعده تلقائيًا.</string>
-    <string name="watch_invalid_url">أدخل رابطًا صحيحًا يبدأ بـ http</string>
-    <string name="watch_seeded">بدأت المراقبة — سيتم تنزيل الفيديوهات الجديدة فقط من الآن</string>
-    <string name="watch_added_unseeded">تمت الإضافة — ستتم تهيئة المراقبة عند أول فحص</string>
-    <string name="watch_last_checked">آخر فحص: %1$s</string>
-    <string name="watch_never_checked">لم يتم الفحص بعد</string>
-    <string name="watch_delete_message">سيتم إيقاف مراقبة «%1$s» وحذفها.</string>
-
-    <!-- v1.10: التنزيل المجدول -->
-    <string name="schedule_download">جدولة التنزيل</string>
-    <string name="scheduled_title">التنزيلات المجدولة</string>
-    <string name="scheduled_empty">لا توجد تنزيلات مجدولة</string>
-    <string name="schedule_past">اختر تاريخًا ووقتًا في المستقبل</string>
-    <string name="scheduled_for">تمت الجدولة لـ %1$s</string>
-    <string name="scheduled_at">مجدول: %1$s</string>
+    <!-- v1.11: strings moved from hardcoded Kotlin (errors, sizes, tags, site names, convert suffix) -->
+    <string name="err_unsupported_url">This site or link is not supported by the extraction engine.</string>
+    <string name="err_private_video">This video is private and cannot be downloaded.</string>
+    <string name="err_age_restricted">This video is age-restricted and requires sign-in, so it cannot be downloaded.</string>
+    <string name="err_verification_required">The site is asking for extra verification right now. Try updating the extraction engine in Settings, then try again.</string>
+    <string name="err_format_unavailable">The requested quality is not available for this video. Choose another quality.</string>
+    <string name="err_video_unavailable">This video is unavailable or has been removed.</string>
+    <string name="err_network">Connection or site error. Check your internet and try again.</string>
+    <string name="err_not_found">This video was not found (404).</string>
+    <string name="err_forbidden">The site refused the request (403). Try updating the extraction engine in Settings.</string>
+    <string name="err_merge_failed">Something went wrong while merging or converting the file after download.</string>
+    <string name="err_engine_not_ready">The download engine is not ready yet. Wait a few seconds and try again.</string>
+    <string name="err_unexpected">An unexpected error occurred.</string>
+    <string name="err_with_detail">Error: %1$s</string>
+    <string name="size_unknown">Unknown</string>
+    <string name="tag_label_format">Tag: %1$s</string>
+    <string name="site_youtube">YouTube</string>
+    <string name="site_instagram">Instagram</string>
+    <string name="site_facebook">Facebook</string>
+    <string name="site_tiktok">TikTok</string>
+    <string name="convert_compressed_suffix">compressed</string>
 </resources>

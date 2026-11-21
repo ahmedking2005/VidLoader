@@ -1,10 +1,13 @@
 package com.ahmed.vidloader.util
 
+import android.content.Context
 import android.net.Uri
+import androidx.annotation.StringRes
+import com.ahmed.vidloader.R
 
 /** A page whose URL alone identifies it as a video page on a supported site. */
 data class PageVideoMatch(
-    /** Human-readable site name (Arabic where natural). */
+    /** Human-readable site name, localised where the brand has a local form. */
     val siteName: String,
     /** The page URL to hand to the extractor. */
     val url: String
@@ -18,7 +21,11 @@ data class PageVideoMatch(
  */
 object PageVideo {
 
-    private class Rule(val siteName: String, val matches: (Uri) -> Boolean)
+    private class Rule(
+        @StringRes val siteNameRes: Int = 0,
+        val siteNameLiteral: String = "",
+        val matches: (Uri) -> Boolean
+    )
 
     private fun hostIs(uri: Uri, vararg domains: String): Boolean {
         val host = uri.host?.lowercase() ?: return false
@@ -29,52 +36,52 @@ object PageVideo {
 
     private val RULES: List<Rule> = listOf(
         // youtube.com/watch?v=… and youtube.com/shorts/<id>
-        Rule("يوتيوب") { uri ->
+        Rule(siteNameRes = R.string.site_youtube) { uri ->
             hostIs(uri, "youtube.com") &&
                 (firstSegment(uri) == "shorts" ||
                     (uri.path == "/watch" && !uri.getQueryParameter("v").isNullOrBlank()))
         },
         // youtu.be/<id>
-        Rule("يوتيوب") { uri ->
+        Rule(siteNameRes = R.string.site_youtube) { uri ->
             hostIs(uri, "youtu.be") && !firstSegment(uri).isNullOrBlank()
         },
         // instagram.com/reel/<id>, instagram.com/reels/<id>
-        Rule("إنستجرام") { uri ->
+        Rule(siteNameRes = R.string.site_instagram) { uri ->
             hostIs(uri, "instagram.com") && firstSegment(uri) in listOf("reel", "reels")
         },
         // facebook.com/watch…, facebook.com/reel/<id>
-        Rule("فيسبوك") { uri ->
+        Rule(siteNameRes = R.string.site_facebook) { uri ->
             hostIs(uri, "facebook.com") && firstSegment(uri) in listOf("watch", "reel", "reels")
         },
         // tiktok.com/@user/video/<id>
-        Rule("تيك توك") { uri ->
+        Rule(siteNameRes = R.string.site_tiktok) { uri ->
             hostIs(uri, "tiktok.com") &&
                 uri.pathSegments.getOrNull(0)?.startsWith("@") == true &&
                 uri.pathSegments.getOrNull(1) == "video"
         },
         // vm.tiktok.com/<code> short links always lead to a video
-        Rule("تيك توك") { uri ->
+        Rule(siteNameRes = R.string.site_tiktok) { uri ->
             hostIs(uri, "vm.tiktok.com", "vt.tiktok.com") && !firstSegment(uri).isNullOrBlank()
         },
         // dailymotion.com/video/<id>
-        Rule("Dailymotion") { uri ->
+        Rule(siteNameLiteral = "Dailymotion") { uri ->
             hostIs(uri, "dailymotion.com") && firstSegment(uri) == "video"
         },
         // dai.ly/<id> short links always lead to a video
-        Rule("Dailymotion") { uri ->
+        Rule(siteNameLiteral = "Dailymotion") { uri ->
             hostIs(uri, "dai.ly") && !firstSegment(uri).isNullOrBlank()
         },
         // vimeo.com/<digits>
-        Rule("Vimeo") { uri ->
+        Rule(siteNameLiteral = "Vimeo") { uri ->
             hostIs(uri, "vimeo.com") && firstSegment(uri)?.all { it.isDigit() } == true
         },
         // ok.ru/video/<id>
-        Rule("OK") { uri ->
+        Rule(siteNameLiteral = "OK") { uri ->
             hostIs(uri, "ok.ru") && firstSegment(uri) == "video"
         },
         // x.com/<user>/status/<id> (and twitter.com) — may or may not hold a video;
         // the extractor fails gracefully when it does not.
-        Rule("X") { uri ->
+        Rule(siteNameLiteral = "X") { uri ->
             hostIs(uri, "x.com", "twitter.com") &&
                 uri.pathSegments.getOrNull(1) == "status" &&
                 uri.pathSegments.getOrNull(2)?.all { it.isDigit() } == true
@@ -82,12 +89,15 @@ object PageVideo {
     )
 
     /** Returns the match for [url], or null when it is not a known video page. */
-    fun detect(url: String?): PageVideoMatch? {
+    fun detect(context: Context, url: String?): PageVideoMatch? {
         if (url.isNullOrBlank()) return null
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
         if (uri.scheme?.lowercase() !in listOf("http", "https")) return null
         val rule = RULES.firstOrNull { runCatching { it.matches(uri) }.getOrDefault(false) }
-        return rule?.let { PageVideoMatch(siteName = it.siteName, url = url) }
+        return rule?.let {
+            val name = if (it.siteNameRes != 0) context.getString(it.siteNameRes) else it.siteNameLiteral
+            PageVideoMatch(siteName = name, url = url)
+        }
     }
 
     /**

@@ -72,8 +72,10 @@ class LibraryAdapter(
         binding.itemIcon.setImageResource(if (item.isAudio) R.drawable.ic_music else R.drawable.ic_play)
         binding.itemName.text = item.fileName
         val date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(item.dateMillis))
-        val meta = "${FormatUtils.humanSize(item.size)} • $date"
-        binding.itemMeta.text = if (item.tag.isNotBlank()) "$meta • وسم: ${item.tag}" else meta
+        val meta = "${FormatUtils.humanSize(binding.root.context, item.size)} • $date"
+        binding.itemMeta.text = if (item.tag.isNotBlank()) {
+            "$meta • ${binding.root.context.getString(R.string.tag_label_format, item.tag)}"
+        } else meta
         binding.itemCheck.visibility = if (selectionMode) View.VISIBLE else View.GONE
         binding.itemCheck.isChecked = item.id in selectedIds
         binding.itemMore.visibility = if (selectionMode) View.GONE else View.VISIBLE

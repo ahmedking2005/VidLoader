@@ -1,13 +1,15 @@
 package com.ahmed.vidloader.util
 
+import android.content.Context
+import com.ahmed.vidloader.R
 import java.util.Locale
 import kotlin.math.ln
 import kotlin.math.pow
 
 object FormatUtils {
 
-    fun humanSize(bytes: Long): String {
-        if (bytes <= 0) return "غير معروف"
+    fun humanSize(context: Context, bytes: Long): String {
+        if (bytes <= 0) return context.getString(R.string.size_unknown)
         val units = arrayOf("B", "KB", "MB", "GB")
         val i = (ln(bytes.toDouble()) / ln(1024.0)).toInt().coerceIn(0, units.lastIndex)
         val value = bytes / 1024.0.pow(i)
@@ -15,8 +17,8 @@ object FormatUtils {
     }
 
     /** Size label for format rows; prefixes ≈ when the size is an estimate. */
-    fun sizeLabel(bytes: Long, approx: Boolean = false): String {
-        val label = humanSize(bytes)
+    fun sizeLabel(context: Context, bytes: Long, approx: Boolean = false): String {
+        val label = humanSize(context, bytes)
         return if (approx && bytes > 0) "≈ $label" else label
     }
 

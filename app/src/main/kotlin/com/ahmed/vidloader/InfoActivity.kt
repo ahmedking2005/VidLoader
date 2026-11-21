@@ -142,7 +142,7 @@ class InfoActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 binding.loading.visibility = View.GONE
                 binding.errorBox.visibility = View.VISIBLE
-                binding.errorText.text = friendlyError(e)
+                binding.errorText.text = friendlyError(this@InfoActivity, e)
             }
         }
     }
@@ -213,7 +213,7 @@ class InfoActivity : AppCompatActivity() {
                 val parts = mutableListOf<String>()
                 val ext = f.ext.orEmpty()
                 if (ext.isNotBlank()) parts += ext.uppercase()
-                if (total > 0) parts += FormatUtils.sizeLabel(total, approx = isApprox(f) || (needsAudio && bestAudioApprox))
+                if (total > 0) parts += FormatUtils.sizeLabel(this@InfoActivity, total, approx = isApprox(f) || (needsAudio && bestAudioApprox))
                 return parts.joinToString(" • ")
             }
 
@@ -242,13 +242,13 @@ class InfoActivity : AppCompatActivity() {
         rows += FormatRow.Header(getString(R.string.info_audio_only))
         rows += FormatRow.Option(
             label = getString(R.string.audio_m4a),
-            sub = if (bestAudioSize > 0) FormatUtils.sizeLabel(bestAudioSize, bestAudioApprox) else "",
+            sub = if (bestAudioSize > 0) FormatUtils.sizeLabel(this@InfoActivity, bestAudioSize, bestAudioApprox) else "",
             iconRes = R.drawable.ic_music,
             spec = DownloadSpec(DownloadKind.AUDIO_M4A, label = getString(R.string.audio_m4a))
         )
         rows += FormatRow.Option(
             label = getString(R.string.audio_mp3),
-            sub = if (bestAudioSize > 0) FormatUtils.sizeLabel(bestAudioSize, bestAudioApprox) else "",
+            sub = if (bestAudioSize > 0) FormatUtils.sizeLabel(this@InfoActivity, bestAudioSize, bestAudioApprox) else "",
             iconRes = R.drawable.ic_music,
             spec = DownloadSpec(DownloadKind.AUDIO_MP3, label = getString(R.string.audio_mp3))
         )

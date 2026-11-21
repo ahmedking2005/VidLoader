@@ -216,7 +216,8 @@ class BrowserFragment : Fragment() {
 
     /** Re-evaluates whether the current page is a known video page. */
     private fun updatePageVideo(url: String?) {
-        val match = PageVideo.detect(url)
+        val ctx = context ?: return
+        val match = PageVideo.detect(ctx, url)
         if (match != pageVideo) {
             pageVideo = match
             if (_binding != null) refreshDetectedUi()

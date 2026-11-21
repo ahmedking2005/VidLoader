@@ -1253,7 +1253,7 @@ class DownloadService : Service() {
                     rt.lastError = if (item.kind == DownloadKind.DIRECT && isExpiredLinkError(e)) {
                         getString(R.string.error_link_expired)
                     } else {
-                        friendlyError(e)
+                        friendlyError(this@DownloadService, e)
                     }
                     ItemOutcome.FAILED
                 }
