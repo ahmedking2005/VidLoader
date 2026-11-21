@@ -226,4 +226,29 @@
 
     <!-- v1.8: بلاطة الإعدادات السريعة واختصار الشاشة الرئيسية -->
     <string name="copy_link_first">انسخ رابطًا أولًا</string>
+
+    <!-- v1.9: بحث المكتبة والوسوم -->
+    <string name="library_search_hint">ابحث في المكتملة…</string>
+    <string name="action_tag">وسم</string>
+    <string name="tag_new">وسم جديد…</string>
+    <string name="tag_none">بدون وسم</string>
+
+    <!-- v1.9: سجل الروابط -->
+    <string name="link_history">سجل الروابط</string>
+    <string name="clear_history">مسح السجل</string>
+    <string name="history_empty">لا توجد روابط في السجل بعد</string>
+    <string name="history_status_started">بدأ التنزيل</string>
+    <string name="history_status_completed">اكتمل</string>
+    <string name="history_status_failed">فشل</string>
+    <string name="history_delete_message">سيتم حذف «%1$s» من سجل الروابط.</string>
+    <string name="history_clear_message">سيتم مسح سجل الروابط بالكامل.</string>
+
+    <!-- v1.9: التحويل السريع -->
+    <string name="convert_to_mp3">تحويل إلى MP3</string>
+    <string name="convert_compress">ضغط الفيديو</string>
+    <string name="convert_started">بدأ التحويل في الخلفية</string>
+    <string name="convert_done">اكتمل التحويل: %1$s</string>
+    <string name="convert_failed">فشل التحويل</string>
+    <string name="convert_failed_for">فشل تحويل: %1$s</string>
+    <string name="convert_no_ffmpeg">لم يتم العثور على محرك التحويل (ffmpeg) داخل التطبيق</string>
 </resources>

@@ -15,7 +15,9 @@ data class LibraryItem(
     val uri: String,
     val mime: String,
     val sourceUrl: String,
-    val isAudio: Boolean
+    val isAudio: Boolean,
+    /** User-assigned label (v1.9); empty = untagged. Absent in pre-v1.9 records. */
+    val tag: String = ""
 )
 
 class LibraryRepository(context: Context) {
@@ -40,7 +42,8 @@ class LibraryRepository(context: Context) {
                         uri = o.optString("uri"),
                         mime = o.optString("mime", "video/*"),
                         sourceUrl = o.optString("sourceUrl"),
-                        isAudio = o.optBoolean("isAudio")
+                        isAudio = o.optBoolean("isAudio"),
+                        tag = o.optString("tag")
                     )
                 )
             }
@@ -59,6 +62,12 @@ class LibraryRepository(context: Context) {
     fun remove(id: String) = synchronized(lock) {
         val list = load()
         list.removeAll { it.id == id }
+        save(list)
+    }
+
+    /** Sets (or clears, with a blank value) the tag of one item (v1.9). */
+    fun setTag(id: String, tag: String) = synchronized(lock) {
+        val list = load().map { if (it.id == id) it.copy(tag = tag.trim()) else it }
         save(list)
     }
 
@@ -81,6 +90,7 @@ class LibraryRepository(context: Context) {
                     .put("mime", item.mime)
                     .put("sourceUrl", item.sourceUrl)
                     .put("isAudio", item.isAudio)
+                    .put("tag", item.tag)
             )
         }
         file.writeText(arr.toString())

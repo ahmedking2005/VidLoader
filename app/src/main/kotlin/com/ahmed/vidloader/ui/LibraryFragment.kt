@@ -62,6 +62,12 @@ class LibraryFragment : Fragment() {
     private val sizeCache = mutableMapOf<String, Long>()
     private val sizeLookupsInFlight = mutableSetOf<String>()
 
+    /** Completed-tab live search text (v1.9); empty = no text filter. */
+    private var searchQuery: String = ""
+
+    /** Completed-tab tag filter (v1.9); null = all tags. */
+    private var selectedTag: String? = null
+
     private lateinit var sortPrefs: SharedPreferences
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -78,10 +84,25 @@ class LibraryFragment : Fragment() {
             onOpen = { openItem(it) },
             onShare = { shareItem(it) },
             onDelete = { confirmDelete(it) },
-            onSelectionChanged = { renderSelectionBar(it) }
+            onSelectionChanged = { renderSelectionBar(it) },
+            onTag = { showTagDialog(it) },
+            onConvertMp3 = { startConvert(it, com.ahmed.vidloader.download.ConvertService.MODE_MP3) },
+            onConvertCompress = { startConvert(it, com.ahmed.vidloader.download.ConvertService.MODE_COMPRESS) }
         )
         binding.libraryList.layoutManager = LinearLayoutManager(requireContext())
         binding.libraryList.adapter = adapter
+
+        binding.librarySearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: android.text.Editable?) {
+                searchQuery = s?.toString()?.trim().orEmpty()
+                renderCompleted()
+            }
+        })
+        binding.historyButton.setOnClickListener {
+            startActivity(Intent(requireContext(), com.ahmed.vidloader.HistoryActivity::class.java))
+        }
 
         binding.sortButton.setOnClickListener { showSortMenu() }
         binding.deleteSelectedButton.setOnClickListener { confirmDeleteSelected() }
@@ -239,7 +260,15 @@ class LibraryFragment : Fragment() {
     /** Renders the completed tab: sorted rows (with resolved sizes), the stats header, the empty state. */
     private fun renderCompleted() {
         if (_binding == null || !::adapter.isInitialized) return
-        val sorted = sortItems(allItems).map { item ->
+        renderTagChips()
+        val filtered = allItems.filter { item ->
+            val matchesSearch = searchQuery.isEmpty() ||
+                item.title.contains(searchQuery, ignoreCase = true) ||
+                item.fileName.contains(searchQuery, ignoreCase = true)
+            val matchesTag = selectedTag == null || item.tag == selectedTag
+            matchesSearch && matchesTag
+        }
+        val sorted = sortItems(filtered).map { item ->
             val size = effectiveSize(item)
             if (size > 0 && size != item.size) item.copy(size = size) else item
         }
@@ -250,6 +279,88 @@ class LibraryFragment : Fragment() {
         binding.emptyText.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
         binding.libraryList.visibility = if (sorted.isEmpty()) View.GONE else View.VISIBLE
     }
+
+    // region search, tags, convert (v1.9)
+
+    /** Rebuilds the tag filter chips from the tags actually in use; keeps the current selection when it still exists. */
+    private fun renderTagChips() {
+        if (_binding == null) return
+        val tags = allItems.map { it.tag }.filter { it.isNotBlank() }.distinct().sorted()
+        if (selectedTag != null && selectedTag !in tags) selectedTag = null
+        binding.tagChipsScroll.visibility = if (tags.isEmpty()) View.GONE else View.VISIBLE
+        binding.tagChips.removeAllViews()
+        for (tag in tags) {
+            val chip = com.google.android.material.chip.Chip(requireContext()).apply {
+                text = tag
+                isCheckable = true
+                isChecked = tag == selectedTag
+            }
+            chip.setOnClickListener {
+                selectedTag = if (chip.isChecked) tag else null
+                renderCompleted()
+            }
+            binding.tagChips.addView(chip)
+        }
+    }
+
+    /** Tag picker: existing tags as a list, plus «وسم جديد» (type one) and «بدون وسم» (clear). */
+    private fun showTagDialog(item: LibraryItem) {
+        val tags = allItems.map { it.tag }.filter { it.isNotBlank() }.distinct().sorted()
+        val options = mutableListOf<String>()
+        options += tags
+        options += getString(R.string.tag_new)
+        options += getString(R.string.tag_none)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.action_tag)
+            .setItems(Array<CharSequence>(options.size) { i -> options[i] }) { _, which ->
+                when {
+                    which < tags.size -> applyTag(item, tags[which])
+                    which == tags.size -> showNewTagDialog(item)
+                    else -> applyTag(item, "")
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showNewTagDialog(item: LibraryItem) {
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = item.tag
+            setText(item.tag)
+            setSingleLine(true)
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.tag_new)
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                applyTag(item, input.text.toString().trim())
+            }
+            .show()
+    }
+
+    private fun applyTag(item: LibraryItem, tag: String) {
+        repo.setTag(item.id, tag)
+        allItems = allItems.map { if (it.id == item.id) it.copy(tag = tag.trim()) else it }
+        renderCompleted()
+    }
+
+    /** Starts a background conversion (ConvertService) for a completed item. */
+    private fun startConvert(item: LibraryItem, mode: String) {
+        if (!exists(item)) {
+            Toast.makeText(requireContext(), R.string.file_missing, Toast.LENGTH_SHORT).show()
+            repo.remove(item.id)
+            reload()
+            return
+        }
+        ContextCompat.startForegroundService(
+            requireContext(),
+            com.ahmed.vidloader.download.ConvertService.convertIntent(requireContext(), item.id, mode)
+        )
+        Toast.makeText(requireContext(), R.string.convert_started, Toast.LENGTH_SHORT).show()
+    }
+
+    // endregion
 
     private fun showSortMenu() {
         val popup = PopupMenu(requireContext(), binding.sortButton)

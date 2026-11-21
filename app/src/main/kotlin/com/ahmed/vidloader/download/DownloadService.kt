@@ -29,6 +29,8 @@ import com.ahmed.vidloader.data.FailedJob
 import com.ahmed.vidloader.data.FailedJobsRepository
 import com.ahmed.vidloader.data.LibraryItem
 import com.ahmed.vidloader.data.LibraryRepository
+import com.ahmed.vidloader.data.LinkHistoryEntry
+import com.ahmed.vidloader.data.LinkHistoryRepository
 import com.ahmed.vidloader.data.PausedJob
 import com.ahmed.vidloader.data.PausedJobItem
 import com.ahmed.vidloader.data.PausedJobsRepository
@@ -290,6 +292,16 @@ class DownloadService : Service() {
 
     /** Enqueues [job] and makes sure the coordinator (and the foreground notification) are running. */
     private fun submitJob(job: WorkJob) {
+        // Link history (v1.9): every flow funnels through here — InfoActivity,
+        // quick download, playlists, the share trampoline, the in-app browser —
+        // so recording at submission covers them all. De-duped by URL inside.
+        val history = LinkHistoryRepository(this)
+        if (job.expandUrl != null) {
+            history.record(job.expandUrl, job.label, LinkHistoryEntry.STATUS_STARTED)
+        }
+        for (item in job.items) {
+            history.record(item.url, item.title, LinkHistoryEntry.STATUS_STARTED)
+        }
         val startCoordinator = synchronized(queueLock) {
             pendingJobs.addLast(job)
             if (coordinatorRunning) {
@@ -893,6 +905,10 @@ class DownloadService : Service() {
      */
     private fun recordFailedJob(job: WorkJob, rt: JobRuntime) {
         if (rt.failedItems.isEmpty()) return
+        val history = LinkHistoryRepository(this)
+        for ((failedItem, _) in rt.failedItems) {
+            history.updateStatus(failedItem.url, LinkHistoryEntry.STATUS_FAILED, failedItem.title)
+        }
         val repo = FailedJobsRepository(this)
         repo.add(
             FailedJob(
@@ -1212,6 +1228,9 @@ class DownloadService : Service() {
                     ext in AUDIO_EXTENSIONS
             )
             LibraryRepository(this).add(libraryItem)
+            LinkHistoryRepository(this).updateStatus(
+                item.url, LinkHistoryEntry.STATUS_COMPLETED, item.title
+            )
 
             rt.lastItemId = libraryItem.id
             rt.progress = 100f

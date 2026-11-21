@@ -147,6 +147,9 @@ class InfoActivity : AppCompatActivity() {
         binding.infoScroll.visibility = View.VISIBLE
 
         videoTitle = info.title.orEmpty()
+        // Link history (v1.9): the real title is known now — record/refresh it.
+        com.ahmed.vidloader.data.LinkHistoryRepository(this)
+            .record(videoUrl, videoTitle, com.ahmed.vidloader.data.LinkHistoryEntry.STATUS_STARTED)
         binding.videoTitle.text = info.title
         if (!info.thumbnail.isNullOrBlank()) {
             binding.thumbnail.load(info.thumbnail) {
@@ -256,6 +259,8 @@ class InfoActivity : AppCompatActivity() {
         binding.playlistBox.visibility = View.VISIBLE
 
         videoTitle = playlist.title
+        com.ahmed.vidloader.data.LinkHistoryRepository(this)
+            .record(videoUrl, videoTitle, com.ahmed.vidloader.data.LinkHistoryEntry.STATUS_STARTED)
         binding.playlistTitle.text = playlist.title
         binding.playlistMeta.text = getString(R.string.playlist_meta_format, playlist.entries.size)
 

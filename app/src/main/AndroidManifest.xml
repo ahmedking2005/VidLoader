@@ -99,8 +99,20 @@
                 android:value="true" />
         </service>
 
+        <!-- Link history (v1.9). -->
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <service
             android:name=".download.DownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Quick convert for completed items (v1.9): MP3 extraction / video compression. -->
+        <service
+            android:name=".download.ConvertService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

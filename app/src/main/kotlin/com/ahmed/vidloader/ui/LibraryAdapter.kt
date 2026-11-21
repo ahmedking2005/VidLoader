@@ -18,7 +18,10 @@ class LibraryAdapter(
     private val onOpen: (LibraryItem) -> Unit,
     private val onShare: (LibraryItem) -> Unit,
     private val onDelete: (LibraryItem) -> Unit,
-    private val onSelectionChanged: (Int) -> Unit
+    private val onSelectionChanged: (Int) -> Unit,
+    private val onTag: (LibraryItem) -> Unit = {},
+    private val onConvertMp3: (LibraryItem) -> Unit = {},
+    private val onConvertCompress: (LibraryItem) -> Unit = {}
 ) : RecyclerView.Adapter<LibraryAdapter.Holder>() {
 
     var items: List<LibraryItem> = emptyList()
@@ -69,7 +72,8 @@ class LibraryAdapter(
         binding.itemIcon.setImageResource(if (item.isAudio) R.drawable.ic_music else R.drawable.ic_play)
         binding.itemName.text = item.fileName
         val date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(item.dateMillis))
-        binding.itemMeta.text = "${FormatUtils.humanSize(item.size)} • $date"
+        val meta = "${FormatUtils.humanSize(item.size)} • $date"
+        binding.itemMeta.text = if (item.tag.isNotBlank()) "$meta • وسم: ${item.tag}" else meta
         binding.itemCheck.visibility = if (selectionMode) View.VISIBLE else View.GONE
         binding.itemCheck.isChecked = item.id in selectedIds
         binding.itemMore.visibility = if (selectionMode) View.GONE else View.VISIBLE
@@ -91,6 +95,9 @@ class LibraryAdapter(
                 when (menuItem.itemId) {
                     R.id.action_open -> onOpen(item)
                     R.id.action_share -> onShare(item)
+                    R.id.action_tag -> onTag(item)
+                    R.id.action_convert_mp3 -> onConvertMp3(item)
+                    R.id.action_convert_compress -> onConvertCompress(item)
                     R.id.action_delete -> onDelete(item)
                 }
                 true

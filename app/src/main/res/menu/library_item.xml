@@ -7,6 +7,15 @@
         android:id="@+id/action_share"
         android:title="@string/action_share" />
     <item
+        android:id="@+id/action_tag"
+        android:title="@string/action_tag" />
+    <item
+        android:id="@+id/action_convert_mp3"
+        android:title="@string/convert_to_mp3" />
+    <item
+        android:id="@+id/action_convert_compress"
+        android:title="@string/convert_compress" />
+    <item
         android:id="@+id/action_delete"
         android:title="@string/action_delete" />
 </menu>
