@@ -95,7 +95,7 @@ object AdsManager {
     private fun loadInterstitial(context: Context) {
         if (!isInitialized || interstitialLoaded) return
         try {
-            UnityAds.load(context, INTERSTITIAL_PLACEMENT, object : IUnityAdsLoadListener {
+            UnityAds.load(INTERSTITIAL_PLACEMENT, object : IUnityAdsLoadListener {
                 override fun onUnityAdsAdLoaded(placementId: String?) {
                     if (placementId == INTERSTITIAL_PLACEMENT) interstitialLoaded = true
                 }

@@ -130,7 +130,7 @@ class HomeFragment : Fragment() {
             com.ahmed.vidloader.ads.AdsManager.BANNER_PLACEMENT,
             UnityBannerSize(320, 50)
         )
-        banner.listener = object : BannerView.Listener {
+        banner.listener = object : BannerView.Listener() {
             override fun onBannerLoaded(bannerAdView: BannerView?) {
                 if (_binding == null || bannerAdView == null) return
                 if (bannerAdView.parent == null) container.addView(bannerAdView)
@@ -144,7 +144,7 @@ class HomeFragment : Fragment() {
             }
 
             override fun onBannerShown(bannerAdView: BannerView?) = Unit
-            override fun onBannerClicked(bannerAdView: BannerView?) = Unit
+            override fun onBannerClick(bannerAdView: BannerView) = Unit
             override fun onBannerLeftApplication(bannerAdView: BannerView?) = Unit
         }
         bannerView = banner
