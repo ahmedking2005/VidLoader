@@ -156,4 +156,30 @@
     <string name="later">لاحقًا</string>
     <string name="app_up_to_date">أنت على أحدث إصدار</string>
     <string name="update_check_failed">تعذّر التحقق من التحديثات</string>
+
+    <!-- v1.6: تبويبا المكتبة + إعدادات التنزيل والسمة -->
+    <string name="paused_label">متوقف مؤقتًا</string>
+    <string name="tab_downloading">قيد التنزيل</string>
+    <string name="tab_completed">المكتملة</string>
+    <string name="active_empty">لا توجد تنزيلات جارية أو متوقفة حاليًا</string>
+    <string name="status_queued">في الانتظار</string>
+    <string name="waiting_wifi">بانتظار Wi-Fi</string>
+    <string name="notif_waiting_wifi_body">تنزيلات بانتظار الاتصال بـ Wi-Fi</string>
+    <string name="download_settings_title">إعدادات التنزيل</string>
+    <string name="download_path">مسار التنزيل</string>
+    <string name="download_path_default">التنزيلات/VidLoader</string>
+    <string name="change">تغيير</string>
+    <string name="default_label">الافتراضي</string>
+    <string name="max_tasks_title">الحد الأقصى لمهام التنزيل المتزامنة</string>
+    <string name="max_tasks_wifi">عبر Wi-Fi</string>
+    <string name="max_tasks_mobile">عبر بيانات الهاتف</string>
+    <string name="rate_limit">حد سرعة التنزيل</string>
+    <string name="rate_unlimited">غير محدود</string>
+    <string name="mobile_data">التنزيل عبر بيانات الهاتف</string>
+    <string name="mobile_data_desc">عند الإيقاف، تنتظر التنزيلات الجديدة اتصال Wi-Fi ولا تبدأ عبر بيانات الهاتف</string>
+    <string name="theme_title">السمة</string>
+    <string name="theme_app">سمة التطبيق</string>
+    <string name="theme_system">استخدام إعدادات النظام</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">داكن</string>
 </resources>

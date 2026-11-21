@@ -20,6 +20,8 @@ class VidLoaderApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // Apply the persisted theme choice before any activity is created.
+        com.ahmed.vidloader.data.DownloadSettings.applyTheme(this)
         Thread { initEngineBlocking() }.start()
     }
 

@@ -27,6 +27,8 @@ import com.ahmed.vidloader.databinding.FragmentLibraryBinding
 import com.ahmed.vidloader.download.DownloadCenter
 import com.ahmed.vidloader.download.DownloadService
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -38,7 +40,10 @@ class LibraryFragment : Fragment() {
     private lateinit var repo: LibraryRepository
     private lateinit var adapter: LibraryAdapter
     private lateinit var pausedRepo: PausedJobsRepository
-    private lateinit var pausedAdapter: PausedAdapter
+    private lateinit var activeAdapter: ActiveAdapter
+
+    /** The initial tab is picked once, from whether anything is in progress when the screen opens. */
+    private var initialTabChosen = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLibraryBinding.inflate(inflater, container, false)
@@ -57,16 +62,31 @@ class LibraryFragment : Fragment() {
         binding.libraryList.adapter = adapter
 
         pausedRepo = PausedJobsRepository(requireContext())
-        pausedAdapter = PausedAdapter(
+        activeAdapter = ActiveAdapter(
+            onPause = { pauseActive(it) },
+            onCancel = { cancelActive(it) },
             onResume = { resumePaused(it) },
-            onDelete = { confirmDeletePaused(it) }
+            onDeletePaused = { confirmDeletePaused(it) }
         )
-        binding.pausedList.layoutManager = LinearLayoutManager(requireContext())
-        binding.pausedList.adapter = pausedAdapter
+        binding.activeList.layoutManager = LinearLayoutManager(requireContext())
+        binding.activeList.adapter = activeAdapter
+
+        binding.libraryTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                showTab(tab?.position ?: 0)
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab?) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab?) = Unit
+        })
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                DownloadCenter.pausedJobs.collect { renderPaused(it) }
+                // In-progress rows: the service's live queue state, with the
+                // persisted paused jobs merged in as PAUSED rows.
+                combine(DownloadCenter.activeItems, DownloadCenter.pausedJobs) { active, paused ->
+                    active + paused.map { it.toActiveItem() }
+                }.collect { renderActive(it) }
             }
         }
     }
@@ -74,6 +94,50 @@ class LibraryFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         reload()
+    }
+
+    private fun showTab(position: Int) {
+        if (_binding == null) return
+        binding.activeContainer.visibility = if (position == 0) View.VISIBLE else View.GONE
+        binding.completedContainer.visibility = if (position == 1) View.VISIBLE else View.GONE
+    }
+
+    private fun PausedJob.toActiveItem(): DownloadCenter.ActiveItem = DownloadCenter.ActiveItem(
+        jobId = id,
+        title = title,
+        status = DownloadCenter.ActiveStatus.PAUSED,
+        progress = progressPercent.toFloat(),
+        isBatch = isBatch,
+        queuePosition = queuePosition,
+        queueTotal = queueTotal,
+        failedCount = failedCount,
+        pausedJob = this
+    )
+
+    private fun renderActive(rows: List<DownloadCenter.ActiveItem>) {
+        if (_binding == null || !::activeAdapter.isInitialized) return
+        activeAdapter.items = rows
+        binding.activeEmpty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+        binding.activeList.visibility = if (rows.isEmpty()) View.GONE else View.VISIBLE
+        if (!initialTabChosen) {
+            initialTabChosen = true
+            val tab = binding.libraryTabs.getTabAt(if (rows.isEmpty()) 1 else 0)
+            if (tab != null && binding.libraryTabs.selectedTabPosition != tab.position) {
+                tab.select()
+            } else {
+                showTab(binding.libraryTabs.selectedTabPosition)
+            }
+        }
+    }
+
+    private fun pauseActive(item: DownloadCenter.ActiveItem) {
+        // Plain startService (the InfoActivity pattern): the rows only exist
+        // while the service runs, and if it just stopped the intent no-ops.
+        requireContext().startService(DownloadService.pauseJobIntent(requireContext(), item.jobId))
+    }
+
+    private fun cancelActive(item: DownloadCenter.ActiveItem) {
+        requireContext().startService(DownloadService.cancelJobIntent(requireContext(), item.jobId))
     }
 
     private fun reload() {
@@ -88,20 +152,10 @@ class LibraryFragment : Fragment() {
         binding.libraryList.visibility = if (alive.isEmpty()) View.GONE else View.VISIBLE
 
         // Paused jobs: the repository is the source of truth (survives process
-        // death); mirror it into the shared flow the observer renders from.
+        // death); mirror it into the shared flow the in-progress tab renders.
         if (::pausedRepo.isInitialized) {
-            val paused = pausedRepo.load()
-            DownloadCenter.pausedJobs.value = paused
-            renderPaused(paused)
+            DownloadCenter.pausedJobs.value = pausedRepo.load()
         }
-    }
-
-    private fun renderPaused(paused: List<PausedJob>) {
-        if (_binding == null || !::pausedAdapter.isInitialized) return
-        pausedAdapter.items = paused
-        val visibility = if (paused.isEmpty()) View.GONE else View.VISIBLE
-        binding.pausedHeader.visibility = visibility
-        binding.pausedList.visibility = visibility
     }
 
     private fun resumePaused(job: PausedJob) {

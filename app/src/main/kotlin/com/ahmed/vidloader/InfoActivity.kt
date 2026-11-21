@@ -86,10 +86,21 @@ class InfoActivity : AppCompatActivity() {
 
         binding.errorRetry.setOnClickListener { loadInfo() }
         binding.pauseDownloadButton.setOnClickListener {
-            startService(DownloadService.pauseIntent(this))
+            // Pause the job this card is mirroring (with parallel downloads
+            // that may not be the only one running); fall back to the global
+            // pause when no job is mirrored.
+            val jobId = DownloadCenter.state.value.jobId
+            startService(
+                if (jobId != null) DownloadService.pauseJobIntent(this, jobId)
+                else DownloadService.pauseIntent(this)
+            )
         }
         binding.cancelDownloadButton.setOnClickListener {
-            startService(DownloadService.cancelIntent(this))
+            val jobId = DownloadCenter.state.value.jobId
+            startService(
+                if (jobId != null) DownloadService.cancelJobIntent(this, jobId)
+                else DownloadService.cancelIntent(this)
+            )
         }
 
         loadInfo()
