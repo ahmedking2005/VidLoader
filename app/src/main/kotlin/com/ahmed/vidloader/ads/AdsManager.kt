@@ -69,7 +69,7 @@ object AdsManager {
     fun init(app: Application) {
         try {
             app.registerActivityLifecycleCallbacks(LifecycleTracker())
-            if (!UnityAds.isSupported()) {
+            if (!UnityAds.isSupported) {
                 Log.i(TAG, "Unity Ads not supported on this device; ads disabled")
                 return
             }
