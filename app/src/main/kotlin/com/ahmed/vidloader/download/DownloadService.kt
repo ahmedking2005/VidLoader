@@ -145,7 +145,7 @@ class DownloadService : Service() {
     /** Ids of pending jobs currently blocked by the mobile-data policy. Guarded by [queueLock]. */
     private val waitingWifiIds = LinkedHashSet<String>()
 
-    private val queueLock = Any()
+    private val queueLock: Object = Object()
 
     @Volatile
     private var coordinatorRunning = false
