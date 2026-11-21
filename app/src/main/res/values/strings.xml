@@ -207,4 +207,23 @@
     <string name="retry_failed">إعادة المحاولة</string>
     <string name="delete_failed_message">سيتم حذف سجل التنزيل الفاشل «%1$s» من القائمة.</string>
     <string name="failed_deleted">تم حذف السجل</string>
+
+    <!-- v1.8: المشغّل المدمج -->
+    <string name="player_error">تعذّر تشغيل الملف</string>
+
+    <!-- v1.8: فرز المكتبة وإحصاءاتها -->
+    <string name="library_stats">%1$d ملف — الحجم الكلي %2$s</string>
+    <string name="sort_by">فرز</string>
+    <string name="sort_newest">الأحدث أولاً</string>
+    <string name="sort_oldest">الأقدم أولاً</string>
+    <string name="sort_largest">الأكبر حجمًا</string>
+    <string name="sort_name">الاسم أ–ي</string>
+
+    <!-- v1.8: الحذف الجماعي -->
+    <string name="delete_selected">حذف المحدد (%1$d)</string>
+    <string name="delete_selected_message">سيتم حذف %1$d ملف نهائيًا.</string>
+    <string name="deleted_count">تم حذف %1$d ملف</string>
+
+    <!-- v1.8: بلاطة الإعدادات السريعة واختصار الشاشة الرئيسية -->
+    <string name="copy_link_first">انسخ رابطًا أولًا</string>
 </resources>

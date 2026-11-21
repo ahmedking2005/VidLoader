@@ -2,6 +2,7 @@ package com.ahmed.vidloader.ui
 
 import android.view.LayoutInflater
 import android.view.MenuItem
+import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
@@ -13,9 +14,11 @@ import java.text.DateFormat
 import java.util.Date
 
 class LibraryAdapter(
+    private val onPlay: (LibraryItem) -> Unit,
     private val onOpen: (LibraryItem) -> Unit,
     private val onShare: (LibraryItem) -> Unit,
-    private val onDelete: (LibraryItem) -> Unit
+    private val onDelete: (LibraryItem) -> Unit,
+    private val onSelectionChanged: (Int) -> Unit
 ) : RecyclerView.Adapter<LibraryAdapter.Holder>() {
 
     var items: List<LibraryItem> = emptyList()
@@ -23,6 +26,37 @@ class LibraryAdapter(
             field = value
             notifyDataSetChanged()
         }
+
+    /** Multi-select state for bulk delete (v1.8); scoped to this list only. */
+    private val selectedIds = LinkedHashSet<String>()
+
+    var selectionMode: Boolean = false
+        private set
+
+    fun selectedItems(): List<LibraryItem> = items.filter { it.id in selectedIds }
+
+    /** Leaves selection mode and clears the selection; a no-op when already out. */
+    fun exitSelection() {
+        if (!selectionMode && selectedIds.isEmpty()) return
+        selectionMode = false
+        selectedIds.clear()
+        notifyDataSetChanged()
+        onSelectionChanged(0)
+    }
+
+    private fun enterSelection(item: LibraryItem) {
+        selectionMode = true
+        selectedIds.add(item.id)
+        notifyDataSetChanged()
+        onSelectionChanged(selectedIds.size)
+    }
+
+    private fun toggle(item: LibraryItem) {
+        if (!selectedIds.remove(item.id)) selectedIds.add(item.id)
+        if (selectedIds.isEmpty()) selectionMode = false
+        notifyDataSetChanged()
+        onSelectionChanged(selectedIds.size)
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val binding = ItemLibraryBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -36,7 +70,20 @@ class LibraryAdapter(
         binding.itemName.text = item.fileName
         val date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(item.dateMillis))
         binding.itemMeta.text = "${FormatUtils.humanSize(item.size)} • $date"
-        binding.root.setOnClickListener { onOpen(item) }
+        binding.itemCheck.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        binding.itemCheck.isChecked = item.id in selectedIds
+        binding.itemMore.visibility = if (selectionMode) View.GONE else View.VISIBLE
+        binding.root.setOnClickListener {
+            if (selectionMode) toggle(item) else onPlay(item)
+        }
+        binding.root.setOnLongClickListener {
+            if (!selectionMode) {
+                enterSelection(item)
+                true
+            } else {
+                false
+            }
+        }
         binding.itemMore.setOnClickListener { view ->
             val popup = PopupMenu(view.context, view)
             popup.menuInflater.inflate(R.menu.library_item, popup.menu)

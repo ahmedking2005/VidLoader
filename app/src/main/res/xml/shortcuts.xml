@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_download"
+        android:shortcutId="quick_download"
+        android:shortcutLongLabel="@string/quick_download"
+        android:shortcutShortLabel="@string/quick_download">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.ahmed.vidloader.QuickDownloadActivity"
+            android:targetPackage="com.ahmed.vidloader" />
+    </shortcut>
+</shortcuts>

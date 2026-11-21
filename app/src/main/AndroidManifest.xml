@@ -34,6 +34,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -63,6 +66,38 @@
                     android:scheme="vidloader" />
             </intent-filter>
         </activity>
+
+        <!-- Built-in media player for downloaded files (v1.8). -->
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- Clipboard trampoline for the QS tile / app shortcut (v1.8): gains
+             focus briefly so Android 10+ lets it read the clipboard, then
+             quick-downloads whatever link it finds. No UI. -->
+        <activity
+            android:name=".QuickDownloadActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/quick_download"
+            android:noHistory="true"
+            android:theme="@style/Theme.VidLoader.Trampoline" />
+
+        <service
+            android:name=".QuickTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_download"
+            android:label="@string/quick_download"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
 
         <service
             android:name=".download.DownloadService"
