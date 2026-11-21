@@ -65,6 +65,15 @@ jobs:
           cp app/build/outputs/apk/release/app-arm64-v8a-release.apk VidLoader-arm64-v8a.apk
           cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk VidLoader-armeabi-v7a.apk
 
+      - name: Generate version.json
+        run: |
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts)
+          TAG="v1.0.${{ github.run_number }}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          printf '{"versionCode": %s, "versionName": "%s", "arm64Url": "%s/VidLoader-arm64-v8a.apk", "v7aUrl": "%s/VidLoader-armeabi-v7a.apk", "notes": ""}' "$VERSION_CODE" "$VERSION_NAME" "$BASE" "$BASE" > version.json
+          cat version.json
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -73,3 +82,4 @@ jobs:
           files: |
             VidLoader-arm64-v8a.apk
             VidLoader-armeabi-v7a.apk
+            version.json
